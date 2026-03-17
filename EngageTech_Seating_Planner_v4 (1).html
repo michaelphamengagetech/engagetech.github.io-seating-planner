@@ -1,0 +1,3311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EngageTech · Seating Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161d;
+    --surface2: #1a1e27;
+    --surface3: #222738;
+    --border: #2a2f3f;
+    --border2: #353c52;
+    --accent: #4f7cff;
+    --accent2: #7c5cfc;
+    --accent3: #00d4aa;
+    --warn: #ff6b4a;
+    --text: #e8eaf0;
+    --text2: #8b90a0;
+    --text3: #555b6e;
+    --london: #4f7cff;
+    --munich: #00d4aa;
+    --sydney: #ff9f4a;
+    --wfh: #7c5cfc;
+    --radius: 10px;
+    --radius-lg: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "DM Sans", sans-serif;
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-mark {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Syne", sans-serif;
+    font-weight: 800;
+    font-size: 14px;
+    color: white;
+  }
+
+  .logo-text {
+    font-family: "Syne", sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: -0.3px;
+  }
+
+  .logo-sub {
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 1px;
+  }
+
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .week-nav {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .week-nav button {
+    background: none;
+    border: none;
+    color: var(--text2);
+    padding: 7px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all .15s;
+  }
+  .week-nav button:hover { background: var(--surface3); color: var(--text); }
+
+  .week-label {
+    padding: 7px 16px;
+    font-family: "DM Mono", monospace;
+    font-size: 11px;
+    color: var(--text);
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    white-space: nowrap;
+    min-width: 160px;
+    text-align: center;
+  }
+
+  .regen-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: var(--radius);
+    color: white;
+    padding: 8px 16px;
+    font-family: "Syne", sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: all .2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .regen-btn::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent, rgba(255,255,255,.12));
+    opacity: 0;
+    transition: opacity .2s;
+  }
+  .regen-btn:hover::after { opacity: 1; }
+  .regen-btn:active { transform: scale(.97); }
+  .regen-btn.spinning .spin-icon { animation: spin .6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── OFFICE TABS ── */
+  .office-tabs {
+    display: flex;
+    gap: 0;
+    padding: 16px 28px 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .office-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: none;
+    background: none;
+    color: var(--text2);
+    font-family: "Syne", sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all .15s;
+    letter-spacing: 0.2px;
+  }
+  .office-tab:hover { color: var(--text); }
+  .office-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+  .office-tab.active.london { border-bottom-color: var(--london); }
+  .office-tab.active.munich { border-bottom-color: var(--munich); }
+  .office-tab.active.sydney { border-bottom-color: var(--sydney); }
+
+  .tab-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.5;
+  }
+  .office-tab.active .tab-dot { opacity: 1; }
+
+  .tab-count {
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    background: var(--surface3);
+    padding: 1px 6px;
+    border-radius: 20px;
+    color: var(--text3);
+  }
+  .office-tab.active .tab-count {
+    background: rgba(79,124,255,.15);
+    color: var(--accent);
+  }
+  .office-tab.active.munich .tab-count { background: rgba(0,212,170,.12); color: var(--munich); }
+  .office-tab.active.sydney .tab-count { background: rgba(255,159,74,.12); color: var(--sydney); }
+
+  /* ── MAIN LAYOUT ── */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 0;
+    height: calc(100vh - 114px);
+  }
+
+  /* ── DAY STRIP ── */
+  .day-strip {
+    display: flex;
+    gap: 0;
+    padding: 12px 28px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+
+  .day-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 18px;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    background: none;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all .15s;
+    min-width: 80px;
+    gap: 2px;
+  }
+  .day-btn:hover { background: var(--surface3); color: var(--text); border-color: var(--border); }
+  .day-btn.active {
+    background: rgba(79,124,255,.12);
+    border-color: rgba(79,124,255,.4);
+    color: var(--text);
+  }
+  .day-btn .day-name {
+    font-family: "Syne", sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .day-btn .day-date {
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    color: var(--text3);
+  }
+  .day-btn.active .day-date { color: var(--accent); }
+  .day-btn .day-in { font-size: 9px; color: var(--text3); margin-top: 2px; }
+
+  /* ── FLOOR PLAN ── */
+  .floor-panel {
+    overflow-y: auto;
+    padding: 20px 28px;
+    background: var(--bg);
+  }
+
+  .floor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .floor-title {
+    font-family: "Syne", sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: -0.5px;
+  }
+  .floor-title span {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .floor-stats {
+    display: flex;
+    gap: 12px;
+  }
+
+  .stat-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    color: var(--text2);
+  }
+  .stat-chip .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot-in { background: var(--accent3); }
+  .dot-wfh { background: var(--wfh); }
+
+  .tables-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+  }
+
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: border-color .2s, transform .2s;
+    animation: fadeUp .3s ease both;
+  }
+  .table-card:hover { border-color: var(--border2); transform: translateY(-1px); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .table-header {
+    padding: 9px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .table-name {
+    font-family: "Syne", sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text2);
+  }
+
+  .table-capacity {
+    font-family: "DM Mono", monospace;
+    font-size: 9px;
+    color: var(--text3);
+  }
+
+  .desk-list { padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+
+  .desk-slot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: 7px;
+    transition: background .15s;
+    cursor: default;
+  }
+  .desk-slot:hover { background: var(--surface2); }
+
+  .desk-id {
+    font-family: "DM Mono", monospace;
+    font-size: 9px;
+    color: var(--text3);
+    min-width: 24px;
+    text-align: center;
+  }
+
+  .desk-person {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .desk-empty .desk-person { color: var(--text3); font-style: italic; font-weight: 300; }
+
+  .desk-wfh {
+    background: rgba(124,92,252,.08);
+    border: 1px solid rgba(124,92,252,.2);
+  }
+  .desk-wfh .desk-person {
+    color: var(--wfh);
+    font-size: 10px;
+  }
+
+  .team-tag {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--surface3);
+    color: var(--text3);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-section {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-title {
+    font-family: "Syne", sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 12px;
+  }
+
+  /* People list */
+  .people-search {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 7px 10px;
+    color: var(--text);
+    font-family: "DM Sans", sans-serif;
+    font-size: 12px;
+    outline: none;
+    margin-bottom: 10px;
+    transition: border-color .15s;
+  }
+  .people-search:focus { border-color: var(--accent); }
+  .people-search::placeholder { color: var(--text3); }
+
+  .person-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background .12s;
+    margin-bottom: 2px;
+  }
+  .person-row:hover { background: var(--surface2); }
+  .person-row.selected { background: rgba(79,124,255,.1); }
+
+  .person-avatar {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Syne", sans-serif;
+    font-weight: 700;
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+
+  .person-info { flex: 1; min-width: 0; }
+  .person-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .person-meta {
+    font-family: "DM Mono", monospace;
+    font-size: 9px;
+    color: var(--text3);
+  }
+
+  .person-seat {
+    font-family: "DM Mono", monospace;
+    font-size: 9px;
+    color: var(--text2);
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .person-seat.wfh { color: var(--wfh); }
+
+  /* Constraint checker */
+  .constraint-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .constraint-row:last-child { border-bottom: none; }
+  .constraint-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  .constraint-text { font-size: 11px; color: var(--text2); line-height: 1.4; }
+  .constraint-text strong { color: var(--text); }
+
+  /* Edit panel */
+  .edit-section { padding: 16px; }
+  .field-group { margin-bottom: 12px; }
+  .field-label {
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+  }
+  .field-input, .field-select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 7px 10px;
+    color: var(--text);
+    font-family: "DM Sans", sans-serif;
+    font-size: 12px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .field-input:focus, .field-select:focus { border-color: var(--accent); }
+  .field-select option { background: var(--surface2); }
+
+  .save-btn {
+    width: 100%;
+    background: linear-gradient(135deg, var(--accent3), #00b896);
+    border: none;
+    border-radius: var(--radius);
+    color: white;
+    padding: 9px;
+    font-family: "Syne", sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: opacity .2s;
+    margin-top: 4px;
+  }
+  .save-btn:hover { opacity: .85; }
+
+  .add-person-btn {
+    width: 100%;
+    background: none;
+    border: 1px dashed var(--border2);
+    border-radius: var(--radius);
+    color: var(--text3);
+    padding: 8px;
+    font-family: "DM Sans", sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .add-person-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(60px);
+    background: var(--surface3);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 10px 20px;
+    font-size: 12px;
+    color: var(--text);
+    opacity: 0;
+    transition: all .3s cubic-bezier(.34,1.56,.64,1);
+    z-index: 999;
+    pointer-events: none;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 10px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: var(--text3);
+    font-family: "DM Mono", monospace;
+  }
+  .legend-swatch { width: 10px; height: 10px; border-radius: 3px; }
+
+  .no-results {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text3);
+    font-family: "DM Mono", monospace;
+    font-size: 11px;
+  }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+  /* Responsive sub-layout for floor + day strip */
+  .left-panel { display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── PEOPLE MANAGER PAGE ── */
+  .page { display: none; }
+  .page.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+  .nav-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text2);
+    font-family: "Syne", sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all .15s;
+    letter-spacing: 0.2px;
+  }
+  .nav-pill:hover { background: var(--surface3); color: var(--text); border-color: var(--border2); }
+  .nav-pill.active { background: rgba(79,124,255,.15); border-color: rgba(79,124,255,.4); color: var(--accent); }
+
+  .pm-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 28px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+
+  .pm-search {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 7px 12px;
+    color: var(--text);
+    font-family: "DM Sans", sans-serif;
+    font-size: 12px;
+    outline: none;
+    width: 220px;
+    transition: border-color .15s;
+  }
+  .pm-search:focus { border-color: var(--accent); }
+  .pm-search::placeholder { color: var(--text3); }
+
+  .pm-filter {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 7px 10px;
+    color: var(--text);
+    font-family: "DM Sans", sans-serif;
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color .15s;
+  }
+  .pm-filter:focus { border-color: var(--accent); }
+  .pm-filter option { background: var(--surface2); }
+
+  .pm-count {
+    font-family: "DM Mono", monospace;
+    font-size: 11px;
+    color: var(--text3);
+    margin-left: auto;
+  }
+
+  .pm-add-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, var(--accent3), #00b896);
+    border: none;
+    border-radius: var(--radius);
+    color: white;
+    padding: 7px 14px;
+    font-family: "Syne", sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    transition: opacity .2s;
+    letter-spacing: 0.2px;
+  }
+  .pm-add-btn:hover { opacity: .85; }
+
+  /* People grid */
+  .pm-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 28px;
+  }
+
+  .pm-week-header {
+    display: grid;
+    grid-template-columns: 260px 100px 120px repeat(5, 1fr) 80px 60px;
+    gap: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding: 0;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .pm-week-header > div {
+    padding: 9px 12px;
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .pm-week-header > div:last-child { border-right: none; }
+
+  .day-col-hdr {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 1px !important;
+    text-align: center;
+    cursor: default;
+  }
+  .day-col-hdr .dch-day { font-size: 10px; color: var(--text2); font-weight: 600; }
+  .day-col-hdr .dch-date { font-size: 9px; color: var(--text3); }
+
+  /* Person rows */
+  .pm-person-row {
+    display: grid;
+    grid-template-columns: 260px 100px 120px repeat(5, 1fr) 80px 60px;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-top: none;
+    background: var(--surface);
+    transition: background .12s;
+  }
+  .pm-person-row:hover { background: var(--surface2); }
+  .pm-person-row.inactive { opacity: 0.45; }
+  .pm-person-row:last-child { border-radius: 0 0 var(--radius) var(--radius); }
+
+  .pm-cell {
+    padding: 8px 12px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .pm-cell:last-child { border-right: none; }
+
+  /* Name cell */
+  .pm-name-cell { gap: 10px; }
+  .pm-avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Syne", sans-serif;
+    font-weight: 700;
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+  .pm-name { font-size: 12px; font-weight: 500; color: var(--text); }
+  .pm-team-badge {
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Day cell — the key interactive bit */
+  .pm-day-cell {
+    position: relative;
+    padding: 6px 8px;
+    cursor: default;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+  }
+
+  .day-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 4px 6px;
+    border-radius: 6px;
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+    border: 1px solid transparent;
+    white-space: nowrap;
+    gap: 4px;
+  }
+
+  .day-badge.in-office {
+    background: rgba(79,124,255,.12);
+    color: var(--accent);
+    border-color: rgba(79,124,255,.25);
+  }
+  .day-badge.in-office:hover { background: rgba(79,124,255,.22); }
+
+  .day-badge.wfh {
+    background: rgba(124,92,252,.12);
+    color: var(--wfh);
+    border-color: rgba(124,92,252,.25);
+  }
+  .day-badge.wfh:hover { background: rgba(124,92,252,.22); }
+
+  .day-badge.away {
+    background: rgba(255,107,74,.1);
+    color: var(--warn);
+    border-color: rgba(255,107,74,.25);
+  }
+  .day-badge.away:hover { background: rgba(255,107,74,.2); }
+
+  .day-seat {
+    font-family: "DM Mono", monospace;
+    font-size: 9px;
+    color: var(--text3);
+    text-align: center;
+  }
+
+  /* Status dropdown popup */
+  .day-popup {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface3);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    z-index: 200;
+    padding: 6px;
+    gap: 4px;
+    flex-direction: column;
+    min-width: 130px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  }
+  .day-popup.open { display: flex; }
+
+  .popup-opt {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--text2);
+    transition: background .1s;
+    white-space: nowrap;
+  }
+  .popup-opt:hover { background: var(--surface2); color: var(--text); }
+  .popup-opt.selected { color: var(--accent); }
+
+  /* Status & actions cells */
+  .pm-status-select {
+    background: none;
+    border: none;
+    color: var(--text2);
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    cursor: pointer;
+    outline: none;
+    width: 100%;
+    padding: 4px 0;
+  }
+  .pm-status-select option { background: var(--surface2); }
+
+  .pm-action-btn {
+    background: none;
+    border: none;
+    color: var(--text3);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px;
+    border-radius: 5px;
+    transition: all .12s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 28px;
+  }
+  .pm-action-btn:hover { background: var(--surface3); color: var(--warn); }
+
+  /* Group header rows */
+  .pm-group-row {
+    padding: 6px 12px;
+    font-family: "Syne", sans-serif;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    border-top: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pm-group-row:first-child { border-top: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0; }
+
+  /* Week nav in PM toolbar */
+  .pm-week-nav {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .pm-week-nav button {
+    background: none;
+    border: none;
+    color: var(--text2);
+    padding: 6px 11px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all .12s;
+  }
+  .pm-week-nav button:hover { background: var(--surface3); color: var(--text); }
+  .pm-week-nav .pm-wk-label {
+    padding: 6px 14px;
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    color: var(--text);
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    white-space: nowrap;
+    min-width: 150px;
+    text-align: center;
+  }
+
+  /* Override status badge colours per WFH day match */
+  .wfh-default-badge {
+    background: rgba(124,92,252,.08) !important;
+    border-color: rgba(124,92,252,.2) !important;
+    color: var(--wfh) !important;
+  }
+
+
+  /* ══ SETTINGS PAGE ══ */
+  .settings-layout {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    flex: 1;
+    overflow: hidden;
+  }
+  .settings-nav {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 16px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-y: auto;
+  }
+  .settings-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text2);
+    transition: all .12s;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    font-family: "DM Sans", sans-serif;
+  }
+  .settings-nav-item:hover { background: var(--surface3); color: var(--text); }
+  .settings-nav-item.active { background: rgba(79,124,255,.12); color: var(--accent); }
+  .settings-nav-item .s-icon { font-size: 14px; width: 20px; text-align: center; }
+  .settings-nav-sep {
+    font-family: "DM Mono", monospace;
+    font-size: 9px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 10px 12px 4px;
+  }
+
+  .settings-panel {
+    overflow-y: auto;
+    padding: 28px 36px;
+    background: var(--bg);
+  }
+  .settings-section { display: none; }
+  .settings-section.active { display: block; }
+
+  .s-page-title {
+    font-family: "Syne", sans-serif;
+    font-weight: 800;
+    font-size: 20px;
+    letter-spacing: -0.4px;
+    margin-bottom: 4px;
+  }
+  .s-page-sub {
+    font-size: 12px;
+    color: var(--text3);
+    margin-bottom: 24px;
+    font-family: "DM Mono", monospace;
+  }
+
+  .s-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .s-card-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .s-card-title {
+    font-family: "Syne", sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .s-card-desc { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .s-card-body { padding: 16px 18px; }
+
+  /* People management table */
+  .sm-table { width: 100%; border-collapse: collapse; }
+  .sm-table th {
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .sm-table td {
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .sm-table tr:last-child td { border-bottom: none; }
+  .sm-table tr:hover td { background: var(--surface2); }
+  .sm-table tr.row-inactive td { opacity: .45; }
+
+  .sm-input {
+    background: var(--surface2);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 4px 8px;
+    color: var(--text);
+    font-family: "DM Sans", sans-serif;
+    font-size: 11px;
+    outline: none;
+    transition: border-color .12s;
+    width: 100%;
+  }
+  .sm-input:focus { border-color: var(--accent); background: var(--surface3); }
+
+  .sm-select {
+    background: var(--surface2);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 4px 8px;
+    color: var(--text);
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color .12s;
+    width: 100%;
+  }
+  .sm-select:focus { border-color: var(--accent); }
+  .sm-select option { background: var(--surface2); }
+
+  .sm-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-family: "DM Mono", monospace;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .sm-badge.active-badge { background: rgba(0,212,170,.12); color: var(--accent3); border: 1px solid rgba(0,212,170,.25); }
+  .sm-badge.inactive-badge { background: rgba(255,107,74,.1); color: var(--warn); border: 1px solid rgba(255,107,74,.2); }
+  .sm-badge.dev-badge { background: rgba(124,92,252,.12); color: var(--wfh); border: 1px solid rgba(124,92,252,.25); }
+  .sm-badge.nondev-badge { background: rgba(79,124,255,.1); color: var(--accent); border: 1px solid rgba(79,124,255,.2); }
+
+  .sm-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text2);
+    font-size: 10px;
+    cursor: pointer;
+    transition: all .12s;
+    font-family: "DM Mono", monospace;
+    white-space: nowrap;
+  }
+  .sm-toggle-btn:hover { border-color: var(--border2); color: var(--text); }
+  .sm-toggle-btn.activate { border-color: rgba(0,212,170,.3); color: var(--accent3); }
+  .sm-toggle-btn.activate:hover { background: rgba(0,212,170,.1); }
+  .sm-toggle-btn.deactivate { border-color: rgba(255,107,74,.3); color: var(--warn); }
+  .sm-toggle-btn.deactivate:hover { background: rgba(255,107,74,.08); }
+
+  /* Toggle switch */
+  .s-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .s-toggle-row:last-child { border-bottom: none; }
+  .s-toggle-label { font-size: 12px; color: var(--text); }
+  .s-toggle-desc { font-size: 10px; color: var(--text3); margin-top: 2px; font-family: "DM Mono", monospace; }
+
+  .toggle-switch {
+    position: relative;
+    width: 36px; height: 20px;
+    flex-shrink: 0;
+  }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--surface3);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: .2s;
+    border: 1px solid var(--border2);
+  }
+  .toggle-slider::before {
+    content: "";
+    position: absolute;
+    width: 14px; height: 14px;
+    left: 2px; top: 50%;
+    transform: translateY(-50%);
+    background: var(--text3);
+    border-radius: 50%;
+    transition: .2s;
+  }
+  .toggle-switch input:checked + .toggle-slider { background: rgba(79,124,255,.3); border-color: rgba(79,124,255,.5); }
+  .toggle-switch input:checked + .toggle-slider::before { transform: translate(16px,-50%); background: var(--accent); }
+
+  /* Office capacity bars */
+  .capacity-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .capacity-row:last-child { border-bottom: none; }
+  .capacity-label { width: 70px; font-size: 12px; color: var(--text2); }
+  .capacity-bar-wrap { flex: 1; height: 6px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
+  .capacity-bar { height: 100%; border-radius: 3px; transition: width .3s; }
+  .capacity-nums { font-family: "DM Mono", monospace; font-size: 10px; color: var(--text3); min-width: 60px; text-align: right; }
+
+  /* Search in settings */
+  .sm-search {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: "DM Sans", sans-serif;
+    font-size: 12px;
+    outline: none;
+    margin-bottom: 12px;
+    transition: border-color .15s;
+  }
+  .sm-search:focus { border-color: var(--accent); }
+  .sm-search::placeholder { color: var(--text3); }
+
+  .sm-filter-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .sm-filter-chip {
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text3);
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all .12s;
+  }
+  .sm-filter-chip:hover { border-color: var(--border2); color: var(--text2); }
+  .sm-filter-chip.active { background: rgba(79,124,255,.12); border-color: rgba(79,124,255,.4); color: var(--accent); }
+
+  /* Constraint rule cards */
+  .rule-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .rule-card-left { display: flex; align-items: center; gap: 10px; flex: 1; }
+  .rule-icon { font-size: 16px; flex-shrink: 0; }
+  .rule-title { font-size: 12px; font-weight: 500; color: var(--text); }
+  .rule-desc { font-size: 10px; color: var(--text3); margin-top: 2px; font-family: "DM Mono", monospace; }
+  .rule-value {
+    background: var(--surface3);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 4px 10px;
+    color: var(--text);
+    font-family: "DM Mono", monospace;
+    font-size: 11px;
+    width: 60px;
+    text-align: center;
+    outline: none;
+  }
+  .rule-value:focus { border-color: var(--accent); }
+
+  /* Export / data */
+  .export-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text2);
+    font-family: "Syne", sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all .15s;
+    margin-bottom: 8px;
+    width: 100%;
+    text-align: left;
+  }
+  .export-btn:hover { background: var(--surface3); color: var(--text); border-color: var(--border2); }
+  .export-btn .e-icon { font-size: 16px; }
+  .export-btn .e-desc { font-size: 10px; color: var(--text3); margin-top: 1px; font-family: "DM Mono", monospace; font-weight: 400; }
+
+  /* About */
+  .about-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .about-stat:last-child { border-bottom: none; }
+  .about-stat-label { color: var(--text3); font-family: "DM Mono", monospace; font-size: 10px; }
+  .about-stat-value { color: var(--text); font-weight: 500; }
+
+  .save-settings-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: var(--radius);
+    color: white;
+    padding: 9px 18px;
+    font-family: "Syne", sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    transition: opacity .2s;
+    margin-top: 16px;
+  }
+  .save-settings-btn:hover { opacity: .85; }
+
+  .sm-table-wrap { overflow-x: auto; max-height: 500px; overflow-y: auto; }
+
+
+  /* ── GS BANNER ── */
+  .gs-banner { display:flex;align-items:center;gap:10px;padding:8px 28px;font-size:11px;font-family:"DM Mono",monospace;flex-shrink:0; }
+  .gs-banner.disconnected { background:rgba(255,107,74,.05);border-bottom:1px solid rgba(255,107,74,.15);color:var(--warn); }
+  .gs-banner.connected { background:rgba(0,212,170,.06);border-bottom:1px solid rgba(0,212,170,.2);color:var(--accent3); }
+  .gs-banner.loading { background:rgba(79,124,255,.05);border-bottom:1px solid rgba(79,124,255,.2);color:var(--accent); }
+  .gs-dot { width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0; }
+  .gs-dot.pulse { animation:gsPulse 1.5s infinite; }
+  @keyframes gsPulse { 0%,100%{opacity:1}50%{opacity:.3} }
+  .gs-sync-btn { margin-left:auto;background:none;border:1px solid currentColor;border-radius:6px;color:inherit;padding:3px 10px;font-family:"DM Mono",monospace;font-size:10px;cursor:pointer;opacity:.8;transition:opacity .15s; }
+  .gs-sync-btn:hover { opacity:1; }
+  /* ── SWAP MODAL ── */
+  .swap-modal { display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:900;align-items:center;justify-content:center; }
+  .swap-modal.open { display:flex; }
+  .swap-modal-box { background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:24px;width:440px;max-width:90vw;box-shadow:0 24px 60px rgba(0,0,0,.5);animation:modalIn .2s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes modalIn { from{opacity:0;transform:scale(.93)}to{opacity:1;transform:scale(1)} }
+  .swap-modal-title { font-family:"Syne",sans-serif;font-weight:800;font-size:16px;margin-bottom:4px; }
+  .swap-modal-sub { font-size:11px;color:var(--text3);margin-bottom:18px;font-family:"DM Mono",monospace;line-height:1.4; }
+  .swap-person-list { display:flex;flex-direction:column;gap:5px;max-height:260px;overflow-y:auto;margin-bottom:16px; }
+  .swap-person-opt { display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius);border:1px solid var(--border);cursor:pointer;transition:all .12s;background:var(--surface2); }
+  .swap-person-opt:hover { border-color:var(--accent);background:rgba(79,124,255,.06); }
+  .swap-person-opt.selected { border-color:var(--accent);background:rgba(79,124,255,.12); }
+  .swap-person-name { font-size:12px;font-weight:500;flex:1; }
+  .swap-person-desk { font-family:"DM Mono",monospace;font-size:10px;color:var(--text3); }
+  .swap-modal-actions { display:flex;gap:8px; }
+  .swap-confirm-btn { flex:1;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:var(--radius);color:white;padding:9px;font-family:"Syne",sans-serif;font-weight:700;font-size:12px;cursor:pointer;transition:opacity .2s; }
+  .swap-confirm-btn:hover { opacity:.85; }
+  .swap-cancel-btn { background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);padding:9px 16px;font-family:"DM Sans",sans-serif;font-size:12px;cursor:pointer;transition:background .12s; }
+  .swap-cancel-btn:hover { background:var(--surface3); }
+  /* ── ATTENDANCE ── */
+  .att-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;padding:20px 28px;overflow-y:auto;flex:1; }
+  .att-card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden; }
+  .att-card-header { padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between; }
+  .att-card-title { font-family:"Syne",sans-serif;font-weight:700;font-size:13px; }
+  .att-card-body { padding:14px 16px; }
+  .mini-bar-wrap { flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end; }
+  .mini-bar-label { font-family:"DM Mono",monospace;font-size:9px;color:var(--text3); }
+  .mini-bar-val { font-family:"DM Mono",monospace;font-size:9px;color:var(--text2); }
+  .trend-row { display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:11px; }
+  .trend-row:last-child { border-bottom:none; }
+  .trend-label { color:var(--text2); }
+  .trend-val { font-family:"DM Mono",monospace;color:var(--text);font-weight:600; }
+  .trend-delta { font-size:10px;padding:1px 6px;border-radius:4px; }
+  .trend-up { background:rgba(0,212,170,.12);color:var(--accent3); }
+  .trend-flat { background:var(--surface3);color:var(--text3); }
+  /* ── NEIGHBOURHOOD ── */
+  .nb-pair-row { display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px; }
+  .nb-pair-row select { background:var(--surface3);border:1px solid var(--border2);border-radius:6px;padding:5px 8px;color:var(--text);font-family:"DM Mono",monospace;font-size:10px;outline:none;flex:1;cursor:pointer; }
+  .nb-del-btn { background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:3px 6px;border-radius:4px;transition:all .12s; }
+  .nb-del-btn:hover { color:var(--warn);background:rgba(255,107,74,.1); }
+  .nb-add-btn { display:flex;align-items:center;justify-content:center;gap:6px;background:none;border:1px dashed var(--border2);border-radius:var(--radius);color:var(--text3);padding:8px;font-size:11px;cursor:pointer;transition:all .15s;font-family:"DM Sans",sans-serif;width:100%;margin-top:4px; }
+  .nb-add-btn:hover { border-color:var(--accent);color:var(--accent); }
+  /* ── DATA SOURCE ── */
+  .gs-url-input { width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;color:var(--text);font-family:"DM Mono",monospace;font-size:11px;outline:none;transition:border-color .15s;margin-bottom:8px;display:block; }
+  .gs-url-input:focus { border-color:var(--accent); }
+  .gs-url-input::placeholder { color:var(--text3); }
+  .gs-connect-btn { display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,var(--accent3),#00b896);border:none;border-radius:var(--radius);color:white;padding:8px 16px;font-family:"Syne",sans-serif;font-weight:700;font-size:12px;cursor:pointer;transition:opacity .2s;margin-bottom:4px; }
+  .gs-connect-btn:hover { opacity:.85; }
+  .gs-sheet-status { display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:var(--radius);border:1px solid var(--border);font-size:11px;font-family:"DM Mono",monospace;margin-bottom:14px; }
+  .gs-sheet-status.connected { border-color:rgba(0,212,170,.3);background:rgba(0,212,170,.06);color:var(--accent3); }
+  .gs-sheet-status.disconnected { color:var(--text3); }
+  .gs-instructions { background:var(--surface2);border-radius:var(--radius);padding:14px 16px;margin-top:14px; }
+  .gs-instructions ol { padding-left:18px; }
+  .gs-instructions li { font-size:11px;color:var(--text2);margin-bottom:7px;line-height:1.6;font-family:"DM Mono",monospace; }
+  .gs-instructions li strong { color:var(--text); }
+
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-mark">ET</div>
+    <div>
+      <div class="logo-text">EngageTech</div>
+      <div class="logo-sub">Seating Planner</div>
+    </div>
+  </div>
+  <div class="header-controls"><button class="nav-pill active" id="nav-floor" onclick="showPage('floor')">🗺 Floor Plan</button><button class="nav-pill" id="nav-people" onclick="showPage('people')">👥 People</button><button class="nav-pill" id="nav-attendance" onclick="showPage('attendance')">📊 Attendance</button><button class="nav-pill" id="nav-settings" onclick="showPage('settings')">⚙️ Settings</button>
+    <div class="week-nav">
+      <button onclick="changeWeek(-1)">←</button>
+      <div class="week-label" id="weekLabel">—</div>
+      <button onclick="changeWeek(1)">→</button>
+    </div>
+    <button class="regen-btn" onclick="regenerate()" id="regenBtn">
+      <span class="spin-icon">⟳</span> Generate Week
+    </button>
+  </div>
+</div>
+
+<!-- FLOOR PLAN PAGE -->
+<div class="page active" id="page-floor">
+<!-- OFFICE TABS -->
+<div class="office-tabs">
+  <button class="office-tab london active" onclick="setOffice('London')">
+    <span class="tab-dot"></span>London
+    <span class="tab-count" id="count-London">54</span>
+  </button>
+  <button class="office-tab munich" onclick="setOffice('Munich')">
+    <span class="tab-dot"></span>Munich
+    <span class="tab-count" id="count-Munich">7</span>
+  </button>
+  <button class="office-tab sydney" onclick="setOffice('Sydney')">
+    <span class="tab-dot"></span>Sydney
+    <span class="tab-count" id="count-Sydney">30</span>
+  </button>
+</div>
+
+<div class="gs-banner disconnected" id="gsBanner"><div class="gs-dot"></div><span>No data source connected</span><button class="gs-sync-btn" onclick="showPage('settings');showSettingsSection('datasource')">Configure →</button></div>
+<!-- MAIN -->
+<div class="main">
+  <div class="left-panel">
+    <!-- DAY STRIP -->
+    <div class="day-strip" id="dayStrip"></div>
+    <!-- LEGEND -->
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:rgba(79,124,255,.25)"></div>In office</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:rgba(124,92,252,.2);border:1px solid rgba(124,92,252,.3)"></div>WFH today</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--surface3)"></div>Empty desk</div>
+    </div>
+    <!-- FLOOR PLAN -->
+    <div class="floor-panel" id="floorPanel">
+      <div class="floor-header">
+        <div class="floor-title">Floor Plan — <span id="floorDay">—</span></div>
+        <div class="floor-stats" id="floorStats"></div>
+      </div>
+      <div class="tables-grid" id="tablesGrid"></div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <!-- People list -->
+    <div class="sidebar-section" style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
+      <div class="sidebar-title">People — <span id="sidebarOffice">London</span></div>
+      <input class="people-search" placeholder="Search by name or team…" id="peopleSearch" oninput="renderPeople()">
+      <div style="overflow-y:auto;flex:1;" id="peopleList"></div>
+      <button class="add-person-btn" onclick="addPerson()">+ Add person</button>
+    </div>
+
+    <!-- Selected person edit -->
+    <div class="edit-section" id="editSection" style="display:none;">
+      <div class="sidebar-title">Edit Person</div>
+      <div class="field-group">
+        <div class="field-label">Name</div>
+        <input class="field-input" id="editName">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Team</div>
+        <input class="field-input" id="editTeam">
+      </div>
+      <div class="field-group">
+        <div class="field-label">WFH Day</div>
+        <select class="field-select" id="editWfh">
+          <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+          <option>Thursday</option><option>Friday</option><option>Office all week</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Active</div>
+        <select class="field-select" id="editActive">
+          <option value="true">Active</option>
+          <option value="false">Inactive (remove from plan)</option>
+        </select>
+      </div>
+      <button class="save-btn" onclick="savePerson()">✓ Save & Regenerate</button>
+    </div>
+
+    <!-- Constraints -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">Constraint Check</div>
+      <div id="constraintList"></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end page-floor -->
+
+
+<!-- PEOPLE MANAGER PAGE -->
+<div class="page" id="page-people">
+  <div class="pm-toolbar">
+    <input class="pm-search" id="pmSearch" placeholder="🔍  Search name or team…" oninput="renderPM()">
+    <select class="pm-filter" id="pmOffice" onchange="renderPM()">
+      <option value="">All offices</option>
+      <option>London</option>
+      <option>Munich</option>
+      <option>Sydney</option>
+    </select>
+    <select class="pm-filter" id="pmTeam" onchange="renderPM()">
+      <option value="">All teams</option>
+      <option>Delivery</option>
+      <option>Human Resources</option>
+      <option>L&amp;D</option>
+      <option>Management</option>
+      <option>Operations</option>
+      <option>Sales</option>
+    </select>
+    <select class="pm-filter" id="pmStatus" onchange="renderPM()">
+      <option value="">All statuses</option>
+      <option value="active">Active only</option>
+      <option value="inactive">Inactive only</option>
+    </select>
+    <div class="pm-week-nav">
+      <button onclick="changePMWeek(-1)">←</button>
+      <div class="pm-wk-label" id="pmWeekLabel">—</div>
+      <button onclick="changePMWeek(1)">→</button>
+    </div>
+    <span class="pm-count" id="pmCount"></span>
+    <button class="pm-add-btn" onclick="addPersonPM()">+ Add Person</button>
+  </div>
+  <div class="pm-body" id="pmBody"></div>
+</div>
+
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════════════
+let PEOPLE = [{"name": "Adam King", "office": "London", "team": "Human Resources", "role": "Non-Dev", "wfhDay": "Wednesday", "active": true}, {"name": "Alex Hambrook", "office": "London", "team": "Operations", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Alex Williams", "office": "London", "team": "Human Resources", "role": "Non-Dev", "wfhDay": "Wednesday", "active": true}, {"name": "Alexander Rose", "office": "London", "team": "Sales", "role": "Non-Dev", "wfhDay": "Wednesday", "active": true}, {"name": "Amraj Chohan", "office": "London", "team": "Sales", "role": "Non-Dev", "wfhDay": "Wednesday", "active": true}, {"name": "Am\u00e9lie Gaudoin", "office": "London", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Thursday", "active": true}, {"name": "Archie Beaumont-Griffin", "office": "London", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Thursday", "active": true}, {"name": "Archie Smith", "office": "London", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Wednesday", "active": true}, {"name": "Ben Goodman", "office": "London", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Thursday", "active": true}, {"name": "Ben Welch-Baines", "office": "London", "team": "Operations", "role": "Non-Dev", "wfhDay": "Tuesday", "active": true}, {"name": "Ben Whiffin", "office": "London", "team": "Sales", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Bethan Phillips", "office": "London", "team": "Operations", "role": "Non-Dev", "wfhDay": "Tuesday", "active": true}, {"name": "Camilla Watson", "office": "London", "team": "Management", "role": "Non-Dev", "wfhDay": "Tuesday", "active": true}, {"name": "Charles Steiner", "office": "London", "team": "Management", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Dylan Riches", "office": "London", "team": "Management", "role": "Non-Dev", "wfhDay": "Thursday", "active": true}, {"name": "E Omar", "office": "London", "team": "Sales", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Eliza Hughes", "office": "London", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Tuesday", "active": true}, {"name": "Era Amza", "office": "London", "team": "Operations", "role": "Non-Dev", "wfhDay": "Thursday", "active": true}, {"name": "Finlay Fletcher", "office": "London", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Tuesday", "active": true}, {"name": "Fionnlagh Taylor", "office": "London", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Wednesday", "active": true}, {"name": "Freddie Marryat", "office": "London", "team": "Management", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Georgia Kirwan", "office": "London", "team": "Management", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Hannah Coughlan", "office": "London", "team": "Human Resources", "role": "Non-Dev", "wfhDay": "Tuesday", "active": true}, {"name": "Harley Long", "office": "London", "team": "Sales", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Harry Henley", "office": "London", "team": "Management", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Hugo Billions", "office": "London", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Tuesday", "active": true}, {"name": "Imogen White", "office": "London", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Tuesday", "active": true}, {"name": "Jack Balcombe", "office": "London", "team": "Management", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Jacob Busch", "office": "London", "team": "Management", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Jad J.", "office": "London", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "James Ellis", "office": "London", "team": "Management", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Jamie Allen", "office": "London", "team": "Operations", "role": "Non-Dev", "wfhDay": "Tuesday", "active": true}, {"name": "Joe Pitcher", "office": "London", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Wednesday", "active": true}, {"name": "Joe Ward", "office": "London", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "John Montpelieri", "office": "London", "team": "Management", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Jon Knight", "office": "London", "team": "Operations", "role": "Non-Dev", "wfhDay": "Thursday", "active": true}, {"name": "Josh Mcardle", "office": "London", "team": "Operations", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Joshua Palmer", "office": "London", "team": "Sales", "role": "Non-Dev", "wfhDay": "Tuesday", "active": true}, {"name": "Lauren Bolster", "office": "London", "team": "Human Resources", "role": "Non-Dev", "wfhDay": "Thursday", "active": true}, {"name": "Lisa Cunningham", "office": "London", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Tuesday", "active": true}, {"name": "Louis Gibson", "office": "London", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Morgan Hare", "office": "London", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Wednesday", "active": true}, {"name": "Owanate Briggs", "office": "London", "team": "Sales", "role": "Non-Dev", "wfhDay": "Thursday", "active": true}, {"name": "Paul McCarthy", "office": "London", "team": "Management", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Rebecca Mercer", "office": "London", "team": "Operations", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Riyadh Chowdhury", "office": "London", "team": "Management", "role": "Non-Dev", "wfhDay": "Wednesday", "active": true}, {"name": "Rose Cutcliffe", "office": "London", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Sam Knight", "office": "London", "team": "Sales", "role": "Non-Dev", "wfhDay": "Thursday", "active": true}, {"name": "Shayan Siraj", "office": "London", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Wednesday", "active": true}, {"name": "Tiffany So", "office": "London", "team": "Sales", "role": "Non-Dev", "wfhDay": "Tuesday", "active": true}, {"name": "Vanessa Vila", "office": "London", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Wednesday", "active": true}, {"name": "Victoria Rodriguez Denyer", "office": "London", "team": "Delivery", "role": "Dev", "wfhDay": "Thursday", "active": true}, {"name": "Will Martin", "office": "London", "team": "Management", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Yero Knight", "office": "London", "team": "Operations", "role": "Non-Dev", "wfhDay": "Wednesday", "active": true}, {"name": "David Sohns", "office": "Munich", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Tuesday", "active": true}, {"name": "Domenico Porcello", "office": "Munich", "team": "Delivery", "role": "Dev", "wfhDay": "Thursday", "active": true}, {"name": "Markus Awischus", "office": "Munich", "team": "Operations", "role": "Non-Dev", "wfhDay": "Thursday", "active": true}, {"name": "R\u00fcdiger Behmel", "office": "Munich", "team": "Management", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Sascha Blassmann", "office": "Munich", "team": "Human Resources", "role": "Non-Dev", "wfhDay": "Wednesday", "active": true}, {"name": "Theresa Alig", "office": "Munich", "team": "Sales", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Wolfgang Gaudian", "office": "Munich", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Ali Henry", "office": "Sydney", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Friday", "active": true}, {"name": "Benjamin Coolentianos", "office": "Sydney", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Blake Sangster", "office": "Sydney", "team": "Operations", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Daniel Meretz", "office": "Sydney", "team": "Sales", "role": "Non-Dev", "wfhDay": "Thursday", "active": true}, {"name": "Gia Grace", "office": "Sydney", "team": "Sales", "role": "Non-Dev", "wfhDay": "Wednesday", "active": true}, {"name": "Greg Diamond", "office": "Sydney", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Monday", "active": true}, {"name": "Hans Y.", "office": "Sydney", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Wednesday", "active": true}, {"name": "Harry Wilson", "office": "Sydney", "team": "Operations", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Jake Smith", "office": "Sydney", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Tuesday", "active": true}, {"name": "James Burgess", "office": "Sydney", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Thursday", "active": true}, {"name": "Jaymon Ryan", "office": "Sydney", "team": "Sales", "role": "Non-Dev", "wfhDay": "Friday", "active": true}, {"name": "Jed Aguilar", "office": "Sydney", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Jet Ruvic Osorio", "office": "Sydney", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Josh King", "office": "Sydney", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Wednesday", "active": true}, {"name": "Kevin Li", "office": "Sydney", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Tuesday", "active": true}, {"name": "Kristian Berridge", "office": "Sydney", "team": "Operations", "role": "Non-Dev", "wfhDay": "Thursday", "active": true}, {"name": "Lara Teden", "office": "Sydney", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Tuesday", "active": true}, {"name": "Maddison Walsh", "office": "Sydney", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Michael Pham", "office": "Sydney", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Thursday", "active": true}, {"name": "Morgan Jones", "office": "Sydney", "team": "Management", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Peter Tran", "office": "Sydney", "team": "L&D", "role": "Non-Dev", "wfhDay": "Wednesday", "active": true}, {"name": "Riley Nelson", "office": "Sydney", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Monday", "active": true}, {"name": "Sam Gardner", "office": "Sydney", "team": "Sales", "role": "Non-Dev", "wfhDay": "Tuesday", "active": true}, {"name": "Sam Toohey", "office": "Sydney", "team": "Human Resources", "role": "Non-Dev", "wfhDay": "Wednesday", "active": true}, {"name": "Samuel Allan-Smith", "office": "Sydney", "team": "Management", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Scott Cornell", "office": "Sydney", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Tuesday", "active": true}, {"name": "Sean-Luke Ferris", "office": "Sydney", "team": "Sales", "role": "Non-Dev", "wfhDay": "Tuesday", "active": true}, {"name": "Vincent Lai", "office": "Sydney", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Wednesday", "active": true}, {"name": "Will Foley", "office": "Sydney", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}, {"name": "Will Shortis", "office": "Sydney", "team": "Delivery", "role": "Non-Dev", "wfhDay": "Office all week", "active": true}];
+let DESKS  = [{"id": "LDN-T1-D1", "office": "London", "tableId": "LDN-T1"}, {"id": "LDN-T1-D2", "office": "London", "tableId": "LDN-T1"}, {"id": "LDN-T1-D3", "office": "London", "tableId": "LDN-T1"}, {"id": "LDN-T1-D4", "office": "London", "tableId": "LDN-T1"}, {"id": "LDN-T1-D5", "office": "London", "tableId": "LDN-T1"}, {"id": "LDN-T1-D6", "office": "London", "tableId": "LDN-T1"}, {"id": "LDN-T2-D1", "office": "London", "tableId": "LDN-T2"}, {"id": "LDN-T2-D2", "office": "London", "tableId": "LDN-T2"}, {"id": "LDN-T2-D3", "office": "London", "tableId": "LDN-T2"}, {"id": "LDN-T2-D4", "office": "London", "tableId": "LDN-T2"}, {"id": "LDN-T2-D5", "office": "London", "tableId": "LDN-T2"}, {"id": "LDN-T2-D6", "office": "London", "tableId": "LDN-T2"}, {"id": "LDN-T3-D1", "office": "London", "tableId": "LDN-T3"}, {"id": "LDN-T3-D2", "office": "London", "tableId": "LDN-T3"}, {"id": "LDN-T3-D3", "office": "London", "tableId": "LDN-T3"}, {"id": "LDN-T3-D4", "office": "London", "tableId": "LDN-T3"}, {"id": "LDN-T3-D5", "office": "London", "tableId": "LDN-T3"}, {"id": "LDN-T3-D6", "office": "London", "tableId": "LDN-T3"}, {"id": "LDN-T4-D1", "office": "London", "tableId": "LDN-T4"}, {"id": "LDN-T4-D2", "office": "London", "tableId": "LDN-T4"}, {"id": "LDN-T4-D3", "office": "London", "tableId": "LDN-T4"}, {"id": "LDN-T4-D4", "office": "London", "tableId": "LDN-T4"}, {"id": "LDN-T4-D5", "office": "London", "tableId": "LDN-T4"}, {"id": "LDN-T4-D6", "office": "London", "tableId": "LDN-T4"}, {"id": "LDN-T5-D1", "office": "London", "tableId": "LDN-T5"}, {"id": "LDN-T5-D2", "office": "London", "tableId": "LDN-T5"}, {"id": "LDN-T5-D3", "office": "London", "tableId": "LDN-T5"}, {"id": "LDN-T5-D4", "office": "London", "tableId": "LDN-T5"}, {"id": "LDN-T5-D5", "office": "London", "tableId": "LDN-T5"}, {"id": "LDN-T5-D6", "office": "London", "tableId": "LDN-T5"}, {"id": "LDN-T6-D1", "office": "London", "tableId": "LDN-T6"}, {"id": "LDN-T6-D2", "office": "London", "tableId": "LDN-T6"}, {"id": "LDN-T6-D3", "office": "London", "tableId": "LDN-T6"}, {"id": "LDN-T6-D4", "office": "London", "tableId": "LDN-T6"}, {"id": "LDN-T6-D5", "office": "London", "tableId": "LDN-T6"}, {"id": "LDN-T6-D6", "office": "London", "tableId": "LDN-T6"}, {"id": "LDN-T7-D1", "office": "London", "tableId": "LDN-T7"}, {"id": "LDN-T7-D2", "office": "London", "tableId": "LDN-T7"}, {"id": "LDN-T7-D3", "office": "London", "tableId": "LDN-T7"}, {"id": "LDN-T7-D4", "office": "London", "tableId": "LDN-T7"}, {"id": "LDN-T7-D5", "office": "London", "tableId": "LDN-T7"}, {"id": "LDN-T7-D6", "office": "London", "tableId": "LDN-T7"}, {"id": "LDN-T8-D1", "office": "London", "tableId": "LDN-T8"}, {"id": "LDN-T8-D2", "office": "London", "tableId": "LDN-T8"}, {"id": "LDN-T8-D3", "office": "London", "tableId": "LDN-T8"}, {"id": "LDN-T8-D4", "office": "London", "tableId": "LDN-T8"}, {"id": "LDN-T8-D5", "office": "London", "tableId": "LDN-T8"}, {"id": "LDN-T8-D6", "office": "London", "tableId": "LDN-T8"}, {"id": "LDN-T9-D1", "office": "London", "tableId": "LDN-T9"}, {"id": "LDN-T9-D2", "office": "London", "tableId": "LDN-T9"}, {"id": "LDN-T9-D3", "office": "London", "tableId": "LDN-T9"}, {"id": "LDN-T9-D4", "office": "London", "tableId": "LDN-T9"}, {"id": "LDN-T9-D5", "office": "London", "tableId": "LDN-T9"}, {"id": "LDN-T9-D6", "office": "London", "tableId": "LDN-T9"}, {"id": "LDN-T10-D1", "office": "London", "tableId": "LDN-T10"}, {"id": "LDN-T10-D2", "office": "London", "tableId": "LDN-T10"}, {"id": "LDN-T10-D3", "office": "London", "tableId": "LDN-T10"}, {"id": "LDN-T10-D4", "office": "London", "tableId": "LDN-T10"}, {"id": "LDN-T10-D5", "office": "London", "tableId": "LDN-T10"}, {"id": "LDN-T10-D6", "office": "London", "tableId": "LDN-T10"}, {"id": "SYD-T1-D1", "office": "Sydney", "tableId": "SYD-T1"}, {"id": "SYD-T1-D2", "office": "Sydney", "tableId": "SYD-T1"}, {"id": "SYD-T1-D3", "office": "Sydney", "tableId": "SYD-T1"}, {"id": "SYD-T1-D4", "office": "Sydney", "tableId": "SYD-T1"}, {"id": "SYD-T1-D5", "office": "Sydney", "tableId": "SYD-T1"}, {"id": "SYD-T2-D1", "office": "Sydney", "tableId": "SYD-T2"}, {"id": "SYD-T2-D2", "office": "Sydney", "tableId": "SYD-T2"}, {"id": "SYD-T2-D3", "office": "Sydney", "tableId": "SYD-T2"}, {"id": "SYD-T2-D4", "office": "Sydney", "tableId": "SYD-T2"}, {"id": "SYD-T2-D5", "office": "Sydney", "tableId": "SYD-T2"}, {"id": "SYD-T2-D6", "office": "Sydney", "tableId": "SYD-T2"}, {"id": "SYD-T3-D1", "office": "Sydney", "tableId": "SYD-T3"}, {"id": "SYD-T3-D2", "office": "Sydney", "tableId": "SYD-T3"}, {"id": "SYD-T3-D3", "office": "Sydney", "tableId": "SYD-T3"}, {"id": "SYD-T3-D4", "office": "Sydney", "tableId": "SYD-T3"}, {"id": "SYD-T3-D5", "office": "Sydney", "tableId": "SYD-T3"}, {"id": "SYD-T4-D1", "office": "Sydney", "tableId": "SYD-T4"}, {"id": "SYD-T4-D2", "office": "Sydney", "tableId": "SYD-T4"}, {"id": "SYD-T4-D3", "office": "Sydney", "tableId": "SYD-T4"}, {"id": "SYD-T4-D4", "office": "Sydney", "tableId": "SYD-T4"}, {"id": "SYD-T4-D5", "office": "Sydney", "tableId": "SYD-T4"}, {"id": "SYD-T4-D6", "office": "Sydney", "tableId": "SYD-T4"}, {"id": "SYD-T4-D7", "office": "Sydney", "tableId": "SYD-T4"}, {"id": "SYD-T4-D8", "office": "Sydney", "tableId": "SYD-T4"}, {"id": "SYD-T5-D1", "office": "Sydney", "tableId": "SYD-T5"}, {"id": "SYD-T5-D2", "office": "Sydney", "tableId": "SYD-T5"}, {"id": "SYD-T5-D3", "office": "Sydney", "tableId": "SYD-T5"}, {"id": "SYD-T5-D4", "office": "Sydney", "tableId": "SYD-T5"}, {"id": "SYD-T5-D5", "office": "Sydney", "tableId": "SYD-T5"}, {"id": "SYD-T5-D6", "office": "Sydney", "tableId": "SYD-T5"}, {"id": "MUN-T1-D1", "office": "Munich", "tableId": "MUN-T1"}, {"id": "MUN-T1-D2", "office": "Munich", "tableId": "MUN-T1"}, {"id": "MUN-T1-D3", "office": "Munich", "tableId": "MUN-T1"}, {"id": "MUN-T1-D4", "office": "Munich", "tableId": "MUN-T1"}, {"id": "MUN-T2-D1", "office": "Munich", "tableId": "MUN-T2"}, {"id": "MUN-T2-D2", "office": "Munich", "tableId": "MUN-T2"}, {"id": "MUN-T2-D3", "office": "Munich", "tableId": "MUN-T2"}, {"id": "MUN-T2-D4", "office": "Munich", "tableId": "MUN-T2"}];
+
+// ════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════
+let currentOffice = "London";
+let currentWeekOffset = 0;
+let currentDayIdx = 0;
+let plan = {};          // plan[personName][dateStr] = deskId | "WFH"
+let selectedPerson = null;
+let weekDates = [];
+
+const OFFICE_ACCENT = { London: "#4f7cff", Munich: "#00d4aa", Sydney: "#ff9f4a" };
+const TEAM_COLORS = {};
+const COLOR_POOL = ["#4f7cff","#00d4aa","#ff9f4a","#ff6b4a","#7c5cfc","#f7c948","#e066ff","#4fd1c5"];
+
+function teamColor(team) {
+  if (!TEAM_COLORS[team]) {
+    TEAM_COLORS[team] = COLOR_POOL[Object.keys(TEAM_COLORS).length % COLOR_POOL.length];
+  }
+  return TEAM_COLORS[team];
+}
+
+function initials(name) {
+  return name.split(" ").slice(0,2).map(w=>w[0]).join("").toUpperCase();
+}
+
+// ════════════════════════════════════════════════
+// DATES
+// ════════════════════════════════════════════════
+function getWeekDates(offset) {
+  // Start from the next Monday from today
+  const today = new Date();
+  const day = today.getDay(); // 0=Sun
+  const daysToMon = day === 0 ? 1 : (8 - day) % 7 || 7;
+  const baseMonday = new Date(today);
+  baseMonday.setDate(today.getDate() + daysToMon + offset * 7);
+  baseMonday.setHours(0,0,0,0);
+
+  const dates = [];
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(baseMonday);
+    d.setDate(baseMonday.getDate() + i);
+    dates.push(d);
+  }
+  return dates;
+}
+
+function dateStr(d) {
+  return d.toISOString().split("T")[0];
+}
+
+function fmtDate(d) {
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+function dayName(d) {
+  return d.toLocaleDateString("en-GB", { weekday: "long" });
+}
+
+function shortDay(d) {
+  return d.toLocaleDateString("en-GB", { weekday: "short" }).toUpperCase();
+}
+
+// ════════════════════════════════════════════════
+// CONSTRAINT ENGINE
+// ════════════════════════════════════════════════
+function generatePlan(dates) {
+  const rng = seededRand(dates[0].getTime());
+  const newPlan = {};
+  
+  // Build desk lookup per office
+  const officeDesks = {};
+  const deskToTable = {};
+  DESKS.forEach(d => {
+    if (!officeDesks[d.office]) officeDesks[d.office] = [];
+    officeDesks[d.office].push(d.id);
+    deskToTable[d.id] = d.tableId;
+  });
+
+  const activePeople = PEOPLE.filter(p => p.active !== false);
+  const byOffice = {};
+  activePeople.forEach(p => {
+    if (!byOffice[p.office]) byOffice[p.office] = [];
+    byOffice[p.office].push(p);
+  });
+
+  // Track recent desk history per person for consecutive constraint
+  const history = {}; // personName -> [last 3 desks]
+
+  dates.forEach(date => {
+    const ds = dateStr(date);
+    const dName = dayName(date);
+
+    ["London","Munich","Sydney"].forEach(office => {
+      const people = byOffice[office] || [];
+      const desks = (officeDesks[office] || []).slice();
+      const taken = new Set();
+
+      // Shuffle people with seeded random
+      const shuffled = shuffle([...people], rng);
+
+      shuffled.forEach(person => {
+        if (!newPlan[person.name]) newPlan[person.name] = {};
+        
+        const wfh = person.wfhDay || "";
+        const isWfh = !["Office all week",""].includes(wfh) && wfh === dName;
+        if (isWfh) {
+          newPlan[person.name][ds] = "WFH";
+          return;
+        }
+
+        const hist = history[person.name] || [];
+        
+        // Find valid desk: not taken, not 3 consecutive
+        let candidates = desks.filter(d => {
+          if (taken.has(d)) return false;
+          // Check consecutive: count trailing matches in history
+          let consec = 0;
+          for (let i = hist.length - 1; i >= 0; i--) {
+            if (hist[i] === d) consec++;
+            else break;
+          }
+          return consec < 2;
+        });
+
+        if (!candidates.length) {
+          candidates = desks.filter(d => !taken.has(d));
+        }
+        if (!candidates.length) candidates = desks;
+
+        shuffle(candidates, rng);
+        const chosen = candidates[0];
+        newPlan[person.name][ds] = chosen;
+        taken.add(chosen);
+
+        if (!history[person.name]) history[person.name] = [];
+        history[person.name].push(chosen);
+        if (history[person.name].length > 3) history[person.name].shift();
+      });
+    });
+  });
+
+  return newPlan;
+}
+
+// Seeded PRNG (mulberry32)
+function seededRand(seed) {
+  let s = seed >>> 0;
+  return function() {
+    s += 0x6D2B79F5;
+    let t = s;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function shuffle(arr, rng) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ════════════════════════════════════════════════
+// RENDER
+// ════════════════════════════════════════════════
+function renderWeekLabel() {
+  const dates = getWeekDates(currentWeekOffset);
+  document.getElementById("weekLabel").textContent =
+    `${fmtDate(dates[0])} – ${fmtDate(dates[4])}`;
+}
+
+function renderDayStrip() {
+  weekDates = getWeekDates(currentWeekOffset);
+  const strip = document.getElementById("dayStrip");
+  strip.innerHTML = "";
+  weekDates.forEach((d, i) => {
+    const inOffice = countInOffice(d, currentOffice);
+    const wfhCount = countWfh(d, currentOffice);
+    const btn = document.createElement("button");
+    btn.className = "day-btn" + (i === currentDayIdx ? " active" : "");
+    btn.innerHTML = `
+      <span class="day-name">${shortDay(d)}</span>
+      <span class="day-date">${fmtDate(d)}</span>
+      <span class="day-in">${inOffice} in · ${wfhCount} WFH</span>
+    `;
+    btn.onclick = () => { currentDayIdx = i; renderAll(); };
+    strip.appendChild(btn);
+  });
+}
+
+function countInOffice(date, office) {
+  const ds = dateStr(date);
+  const dName = dayName(date);
+  return PEOPLE.filter(p => p.office === office && p.active !== false).filter(p => {
+    const wfh = p.wfhDay || "";
+    return !(!["Office all week",""].includes(wfh) && wfh === dName);
+  }).length;
+}
+
+function countWfh(date, office) {
+  const ds = dateStr(date);
+  const dName = dayName(date);
+  return PEOPLE.filter(p => p.office === office && p.active !== false).filter(p => {
+    const wfh = p.wfhDay || "";
+    return !["Office all week",""].includes(wfh) && wfh === dName;
+  }).length;
+}
+
+function renderFloor() {
+  const date = weekDates[currentDayIdx];
+  const ds = dateStr(date);
+  const dName = dayName(date);
+
+  document.getElementById("floorDay").textContent = `${dName} ${fmtDate(date)}`;
+
+  const inCount = countInOffice(date, currentOffice);
+  const wfhCount = countWfh(date, currentOffice);
+  document.getElementById("floorStats").innerHTML = `
+    <div class="stat-chip"><div class="dot dot-in"></div>${inCount} in office</div>
+    <div class="stat-chip"><div class="dot dot-wfh"></div>${wfhCount} WFH</div>
+  `;
+
+  // Group desks by table
+  const officeDesks = DESKS.filter(d => d.office === currentOffice);
+  const byTable = {};
+  officeDesks.forEach(d => {
+    if (!byTable[d.tableId]) byTable[d.tableId] = [];
+    byTable[d.tableId].push(d);
+  });
+
+  // Build reverse lookup: desk -> person for today
+  const deskToPerson = {};
+  PEOPLE.filter(p => p.office === currentOffice && p.active !== false).forEach(p => {
+    const assignment = plan[p.name] && plan[p.name][ds];
+    if (assignment && assignment !== "WFH") {
+      deskToPerson[assignment] = p;
+    }
+  });
+
+  const grid = document.getElementById("tablesGrid");
+  grid.innerHTML = "";
+
+  const sortedTables = Object.keys(byTable).sort((a,b) => {
+    const na = parseInt(a.replace(/\D/g,"")) || 0;
+    const nb = parseInt(b.replace(/\D/g,"")) || 0;
+    return na - nb;
+  });
+
+  sortedTables.forEach((tableId, ti) => {
+    const tableDesks = byTable[tableId];
+    const tNum = tableId.split("-T")[1] || (ti+1);
+    const card = document.createElement("div");
+    card.className = "table-card";
+    card.style.animationDelay = `${ti * 30}ms`;
+
+    const occupants = tableDesks.map(d => deskToPerson[d.id]).filter(Boolean);
+    const occupied = occupants.length;
+
+    card.innerHTML = `
+      <div class="table-header">
+        <div class="table-name">Table ${tNum}</div>
+        <div class="table-capacity">${occupied}/${tableDesks.length}</div>
+      </div>
+      <div class="desk-list" id="table-${tableId}"></div>
+    `;
+    grid.appendChild(card);
+
+    const deskList = card.querySelector(".desk-list");
+    tableDesks.forEach((desk, di) => {
+      const person = deskToPerson[desk.id];
+      const dNum = desk.id.split("-D")[1] || (di+1);
+      const slot = document.createElement("div");
+
+      if (person) {
+        const tc = teamColor(person.team);
+        slot.className = "desk-slot";
+        slot.innerHTML = `
+          <span class="desk-id">D${dNum}</span>
+          <span class="desk-person">${person.name}</span>
+          <span class="team-tag" style="color:${tc};background:${tc}22">${person.team}</span>
+        `;
+        slot.onclick = () => selectPerson(person.name);
+        const swapBtn = document.createElement('button');
+        swapBtn.title = 'Swap desk';
+        swapBtn.textContent = '⇄';
+        swapBtn.style.cssText = 'background:none;border:1px solid var(--border);border-radius:4px;color:var(--text3);font-size:9px;padding:2px 5px;cursor:pointer;margin-left:4px;flex-shrink:0;font-family:"DM Mono",monospace;line-height:1;';
+        swapBtn.addEventListener('click', function(e){ e.stopPropagation(); openSwapModal(person.name, ds); });
+        slot.appendChild(swapBtn);
+      } else {
+        // Check if anyone is WFH who would normally sit here (can't determine exactly, just show empty)
+        slot.className = "desk-slot desk-empty";
+        slot.innerHTML = `
+          <span class="desk-id">D${dNum}</span>
+          <span class="desk-person">Available</span>
+        `;
+      }
+      deskList.appendChild(slot);
+    });
+  });
+}
+
+function renderPeople() {
+  const search = document.getElementById("peopleSearch").value.toLowerCase();
+  const date = weekDates[currentDayIdx];
+  const ds = date ? dateStr(date) : null;
+
+  const list = document.getElementById("peopleList");
+  const officePeople = PEOPLE
+    .filter(p => p.office === currentOffice && p.active !== false)
+    .filter(p => !search || p.name.toLowerCase().includes(search) || p.team.toLowerCase().includes(search))
+    .sort((a,b) => a.name.localeCompare(b.name));
+
+  list.innerHTML = "";
+
+  if (!officePeople.length) {
+    list.innerHTML = `<div class="no-results">No people found</div>`;
+    return;
+  }
+
+  officePeople.forEach(p => {
+    const assignment = ds && plan[p.name] ? plan[p.name][ds] : null;
+    const isWfh = assignment === "WFH";
+    const seatLabel = isWfh ? "WFH" : (assignment ? shortDeskLabel(assignment) : "—");
+    const tc = teamColor(p.team);
+    const row = document.createElement("div");
+    row.className = "person-row" + (selectedPerson === p.name ? " selected" : "");
+    row.innerHTML = `
+      <div class="person-avatar" style="background:${tc}22;color:${tc}">${initials(p.name)}</div>
+      <div class="person-info">
+        <div class="person-name">${p.name}</div>
+        <div class="person-meta">${p.team} · ${p.wfhDay}</div>
+      </div>
+      <div class="person-seat ${isWfh ? "wfh" : ""}">${seatLabel}</div>
+    `;
+    row.onclick = () => selectPerson(p.name);
+    list.appendChild(row);
+  });
+}
+
+function shortDeskLabel(deskId) {
+  const parts = deskId.split("-");
+  if (parts.length === 3) return `T${parts[1].replace("T","")}·D${parts[2].replace("D","")}`;
+  return deskId;
+}
+
+function renderConstraints() {
+  const violations = checkConstraints();
+  const list = document.getElementById("constraintList");
+  const checks = [
+    { ok: violations.consecutive === 0, label: "No same seat 3 days in a row", detail: violations.consecutive > 0 ? `${violations.consecutive} violations` : "All clear" },
+    { ok: violations.devOnly === 0, label: "No dev-only tables", detail: violations.devOnly > 0 ? `${violations.devOnly} tables flagged` : "All clear" },
+    { ok: true, label: "WFH days respected", detail: "Applied for all eligible staff" },
+    { ok: true, label: '"Office all week" honoured', detail: "Never assigned WFH" },
+  ];
+  list.innerHTML = checks.map(c => `
+    <div class="constraint-row">
+      <span class="constraint-icon">${c.ok ? "✅" : "⚠️"}</span>
+      <div class="constraint-text">
+        <strong>${c.label}</strong><br>${c.detail}
+      </div>
+    </div>
+  `).join("");
+}
+
+function checkConstraints() {
+  let consecutive = 0;
+  // Check within current week
+  const dates = weekDates.map(dateStr);
+  PEOPLE.filter(p=>p.active!==false).forEach(p => {
+    let streak = 1;
+    for (let i = 1; i < dates.length; i++) {
+      const a1 = plan[p.name]?.[dates[i-1]];
+      const a2 = plan[p.name]?.[dates[i]];
+      if (a1 && a2 && a1 === a2 && a1 !== "WFH") {
+        streak++;
+        if (streak >= 3) consecutive++;
+      } else streak = 1;
+    }
+  });
+
+  // Dev-only table check
+  let devOnly = 0;
+  weekDates.forEach(date => {
+    const ds = dateStr(date);
+    const tableOccupants = {};
+    PEOPLE.filter(p=>p.office===currentOffice&&p.active!==false).forEach(p => {
+      const assignment = plan[p.name]?.[ds];
+      if (assignment && assignment !== "WFH") {
+        const desk = DESKS.find(d=>d.id===assignment);
+        if (desk) {
+          if (!tableOccupants[desk.tableId]) tableOccupants[desk.tableId] = [];
+          tableOccupants[desk.tableId].push(p);
+        }
+      }
+    });
+    Object.values(tableOccupants).forEach(ppl => {
+      if (ppl.length > 0 && ppl.every(p => p.role === "Dev")) devOnly++;
+    });
+  });
+
+  return { consecutive, devOnly };
+}
+
+// ════════════════════════════════════════════════
+// INTERACTIONS
+// ════════════════════════════════════════════════
+function setOffice(office) {
+  currentOffice = office;
+  document.querySelectorAll(".office-tab").forEach(t => {
+    t.classList.toggle("active", t.textContent.trim().startsWith(office));
+  });
+  document.getElementById("sidebarOffice").textContent = office;
+  selectedPerson = null;
+  document.getElementById("editSection").style.display = "none";
+  renderAll();
+}
+
+function changeWeek(delta) {
+  currentWeekOffset += delta;
+  currentDayIdx = 0;
+  weekDates = getWeekDates(currentWeekOffset);
+  plan = generatePlan(weekDates);
+  renderWeekLabel();
+  renderAll();
+}
+
+function regenerate() {
+  const btn = document.getElementById("regenBtn");
+  btn.classList.add("spinning");
+  setTimeout(() => {
+    weekDates = getWeekDates(currentWeekOffset);
+    plan = generatePlan(weekDates);
+    renderAll();
+    btn.classList.remove("spinning");
+    showToast("✓ Week regenerated successfully");
+  }, 400);
+}
+
+function selectPerson(name) {
+  selectedPerson = name;
+  const p = PEOPLE.find(x => x.name === name);
+  if (!p) return;
+  document.getElementById("editSection").style.display = "block";
+  document.getElementById("editName").value = p.name;
+  document.getElementById("editTeam").value = p.team;
+  document.getElementById("editWfh").value = p.wfhDay || "Office all week";
+  document.getElementById("editActive").value = String(p.active !== false);
+  renderPeople();
+}
+
+function savePerson() {
+  const p = PEOPLE.find(x => x.name === selectedPerson);
+  if (!p) return;
+  p.team = document.getElementById("editTeam").value;
+  p.wfhDay = document.getElementById("editWfh").value;
+  p.active = document.getElementById("editActive").value === "true";
+  plan = generatePlan(weekDates);
+  renderAll();
+  showToast(`✓ ${p.name} updated & plan regenerated`);
+}
+
+function addPerson() {
+  const name = prompt("Full name:");
+  if (!name) return;
+  PEOPLE.push({
+    name: name.trim(),
+    office: currentOffice,
+    team: "Delivery",
+    role: "Non-Dev",
+    wfhDay: "Wednesday",
+    active: true
+  });
+  document.getElementById(`count-${currentOffice}`).textContent =
+    PEOPLE.filter(p=>p.office===currentOffice&&p.active!==false).length;
+  plan = generatePlan(weekDates);
+  renderAll();
+  showToast(`✓ ${name} added to ${currentOffice}`);
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2500);
+}
+
+function renderAll() {
+  renderDayStrip();
+  renderFloor();
+  renderPeople();
+  renderConstraints();
+  // Update tab counts
+  ["London","Munich","Sydney"].forEach(o => {
+    document.getElementById(`count-${o}`).textContent =
+      PEOPLE.filter(p=>p.office===o&&p.active!==false).length;
+  });
+}
+
+
+// ════════════════════════════════════════════════
+// PEOPLE MANAGER
+// ════════════════════════════════════════════════
+let pmWeekOffset = 0;
+let pmWeekDates = [];
+let openPopup = null;
+// overrides[personName][dateStr] = 'in' | 'wfh' | 'away'
+const overrides = {};
+
+function initPM() {
+  pmWeekDates = getWeekDates(pmWeekOffset);
+  updatePMWeekLabel();
+  renderPM();
+}
+
+function changePMWeek(delta) {
+  pmWeekOffset += delta;
+  pmWeekDates = getWeekDates(pmWeekOffset);
+  updatePMWeekLabel();
+  // Regenerate plan for this week if not already done
+  plan = generatePlan(pmWeekDates);
+  renderPM();
+}
+
+function updatePMWeekLabel() {
+  const d = pmWeekDates;
+  document.getElementById("pmWeekLabel").textContent =
+    d.length ? `${fmtDate(d[0])} – ${fmtDate(d[4])}` : "—";
+}
+
+function getDayStatus(person, date) {
+  const ds = dateStr(date);
+  const dName = dayName(date);
+  // Check override first
+  if (overrides[person.name] && overrides[person.name][ds]) {
+    return overrides[person.name][ds];
+  }
+  // Default WFH day
+  const wfh = person.wfhDay || "";
+  if (!["Office all week",""].includes(wfh) && wfh === dName) return "wfh";
+  return "in";
+}
+
+function setDayStatus(personName, dateStr_, status) {
+  if (!overrides[personName]) overrides[personName] = {};
+  overrides[personName][dateStr_] = status;
+  // Rebuild plan with overrides applied
+  plan = generatePlan(pmWeekDates);
+  renderPM();
+  showToast(`✓ Updated`);
+}
+
+function renderPM() {
+  if (!pmWeekDates.length) pmWeekDates = getWeekDates(pmWeekOffset);
+  updatePMWeekLabel();
+
+  const search = (document.getElementById("pmSearch")?.value || "").toLowerCase();
+  const officeF = document.getElementById("pmOffice")?.value || "";
+  const teamF   = document.getElementById("pmTeam")?.value || "";
+  const statusF = document.getElementById("pmStatus")?.value || "";
+
+  let people = PEOPLE.filter(p => {
+    if (officeF && p.office !== officeF) return false;
+    if (teamF && p.team !== teamF) return false;
+    if (statusF === "active" && p.active === false) return false;
+    if (statusF === "inactive" && p.active !== false) return false;
+    if (search && !p.name.toLowerCase().includes(search) && !p.team.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  document.getElementById("pmCount").textContent = `${people.length} people`;
+
+  const body = document.getElementById("pmBody");
+  body.innerHTML = "";
+
+  // Column header
+  const hdr = document.createElement("div");
+  hdr.className = "pm-week-header";
+  hdr.innerHTML = `
+    <div>Person</div>
+    <div>Office</div>
+    <div>Team</div>
+    ${pmWeekDates.map(d => `
+      <div class="day-col-hdr">
+        <span class="dch-day">${shortDay(d)}</span>
+        <span class="dch-date">${fmtDate(d)}</span>
+      </div>
+    `).join("")}
+    <div>WFH Day</div>
+    <div>Action</div>
+  `;
+  body.appendChild(hdr);
+
+  // Group by office then team
+  const groups = {};
+  people.forEach(p => {
+    const key = `${p.office} — ${p.team}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(p);
+  });
+
+  const sortedGroups = Object.keys(groups).sort();
+  let rowCount = 0;
+
+  sortedGroups.forEach(groupKey => {
+    const gpPeople = groups[groupKey].sort((a,b) => a.name.localeCompare(b.name));
+    const [gOffice, gTeam] = groupKey.split(" — ");
+    const oc = OFFICE_ACCENT[gOffice] || "#4f7cff";
+    const tc = teamColor(gTeam);
+
+    // Group header
+    const gh = document.createElement("div");
+    gh.className = "pm-group-row";
+    gh.style.cssText = `color:${oc};background:${oc}10;border-color:${oc}30;`;
+    gh.innerHTML = `
+      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${oc}"></span>
+      ${gOffice} &nbsp;·&nbsp; ${gTeam}
+      <span style="font-weight:400;color:var(--text3);font-size:9px;">${gpPeople.length} people</span>
+    `;
+    body.appendChild(gh);
+
+    gpPeople.forEach((person, pi) => {
+      rowCount++;
+      const row = document.createElement("div");
+      row.className = "pm-person-row" + (person.active === false ? " inactive" : "");
+      row.id = `pm-row-${person.name.replace(/\s+/g,"_")}`;
+
+      const tc2 = teamColor(person.team);
+      const initStr = initials(person.name);
+
+      // Build day cells
+      let dayCells = pmWeekDates.map(date => {
+        const ds = dateStr(date);
+        const status = getDayStatus(person, date);
+        const seat = (plan[person.name] && plan[person.name][ds] && plan[person.name][ds] !== "WFH")
+          ? shortDeskLabel(plan[person.name][ds]) : "";
+
+        const badgeClass = status === "wfh" ? "wfh" : status === "away" ? "away" : "in-office";
+        const icon = status === "wfh" ? "🏠" : status === "away" ? "🏖️" : "💼";
+        const label = status === "wfh" ? "WFH" : status === "away" ? "Away" : "Office";
+
+        return `
+          <div class="pm-cell pm-day-cell" style="position:relative;">
+            <div class="day-badge ${badgeClass}" onclick="togglePopup(event,'${person.name}','${ds}')">
+              ${icon} ${label}
+            </div>
+            ${seat ? `<div class="day-seat">${seat}</div>` : ""}
+            <div class="day-popup" id="popup-${person.name.replace(/\s+/g,"_")}-${ds}">
+              <div class="popup-opt ${status==="in"?"selected":""}" onclick="setDayStatus('${person.name}','${ds}','in');closeAllPopups()">
+                💼 In Office
+              </div>
+              <div class="popup-opt ${status==="wfh"?"selected":""}" onclick="setDayStatus('${person.name}','${ds}','wfh');closeAllPopups()">
+                🏠 WFH
+              </div>
+              <div class="popup-opt ${status==="away"?"selected":""}" onclick="setDayStatus('${person.name}','${ds}','away');closeAllPopups()">
+                🏖️ Away / OOO
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      row.innerHTML = `
+        <div class="pm-cell pm-name-cell">
+          <div class="pm-avatar" style="background:${tc2}22;color:${tc2}">${initStr}</div>
+          <div>
+            <div class="pm-name">${person.name}</div>
+            <div style="font-size:9px;color:var(--text3);font-family:'DM Mono',monospace;">${person.role}</div>
+          </div>
+        </div>
+        <div class="pm-cell">
+          <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text2);">${person.office}</span>
+        </div>
+        <div class="pm-cell">
+          <span class="pm-team-badge" style="background:${tc2}18;color:${tc2}">${person.team}</span>
+        </div>
+        ${dayCells}
+        <div class="pm-cell">
+          <select class="pm-status-select" onchange="updateWfhDay('${person.name}', this.value)">
+            <option ${person.wfhDay==="Monday"?"selected":""}>Monday</option>
+            <option ${person.wfhDay==="Tuesday"?"selected":""}>Tuesday</option>
+            <option ${person.wfhDay==="Wednesday"?"selected":""}>Wednesday</option>
+            <option ${person.wfhDay==="Thursday"?"selected":""}>Thursday</option>
+            <option ${person.wfhDay==="Friday"?"selected":""}>Friday</option>
+            <option ${person.wfhDay==="Office all week"?"selected":""}>Office all week</option>
+          </select>
+        </div>
+        <div class="pm-cell" style="justify-content:center;">
+          <button class="pm-action-btn" title="${person.active===false?"Reactivate":"Deactivate"}"
+            onclick="toggleActive('${person.name}')">
+            ${person.active===false ? "✓" : "✕"}
+          </button>
+        </div>
+      `;
+      body.appendChild(row);
+    });
+  });
+
+  if (rowCount === 0) {
+    body.innerHTML += `<div style="text-align:center;padding:60px;color:var(--text3);font-family:'DM Mono',monospace;font-size:12px;">No people match your filters</div>`;
+  }
+}
+
+function togglePopup(e, personName, ds) {
+  e.stopPropagation();
+  const id = `popup-${personName.replace(/\s+/g,"_")}-${ds}`;
+  const popup = document.getElementById(id);
+  if (!popup) return;
+  const wasOpen = popup.classList.contains("open");
+  closeAllPopups();
+  if (!wasOpen) popup.classList.add("open");
+}
+
+function closeAllPopups() {
+  document.querySelectorAll(".day-popup.open").forEach(p => p.classList.remove("open"));
+}
+
+function updateWfhDay(personName, newDay) {
+  const p = PEOPLE.find(x => x.name === personName);
+  if (!p) return;
+  p.wfhDay = newDay;
+  plan = generatePlan(pmWeekDates);
+  renderPM();
+  showToast(`✓ ${personName.split(" ")[0]}'s WFH day updated`);
+}
+
+function toggleActive(personName) {
+  const p = PEOPLE.find(x => x.name === personName);
+  if (!p) return;
+  p.active = p.active === false ? true : false;
+  plan = generatePlan(pmWeekDates);
+  renderPM();
+  showToast(`${p.active ? "✓ Reactivated" : "✕ Deactivated"}: ${personName.split(" ")[0]}`);
+}
+
+function addPersonPM() {
+  const name = prompt("Full name:");
+  if (!name || !name.trim()) return;
+  const office = document.getElementById("pmOffice").value || "London";
+  const team = document.getElementById("pmTeam").value || "Delivery";
+  PEOPLE.push({ name: name.trim(), office, team, role: "Non-Dev", wfhDay: "Wednesday", active: true });
+  plan = generatePlan(pmWeekDates);
+  renderPM();
+  showToast(`✓ ${name.trim()} added`);
+}
+
+// Close popups on outside click
+document.addEventListener("click", closeAllPopups);
+
+// ── PAGE SWITCHER ──
+function showPage(page) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.getElementById("page-" + page).classList.add("active");
+  document.querySelectorAll(".nav-pill").forEach(b => b.classList.remove("active"));
+  document.getElementById("nav-" + page).classList.add("active");
+  if (page === "people") {
+    pmWeekDates = getWeekDates(pmWeekOffset);
+    plan = generatePlan(pmWeekDates);
+    renderPM();
+  }
+  if (page === "settings") {
+    showSettingsSection("people");
+  }
+  if (page === "attendance") {
+    renderAttendance();
+  }
+}
+
+// ════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════
+weekDates = getWeekDates(0);
+plan = generatePlan(weekDates);
+renderWeekLabel();
+renderAll();
+pmWeekDates = getWeekDates(0);
+updatePMWeekLabel();
+renderGSBanner();
+if(gsUrl) syncFromGSheets();
+
+// ════════════════════════════════════════════════
+// SETTINGS
+// ════════════════════════════════════════════════
+
+let smFilter = "all";
+
+function showSettingsSection(id) {
+  document.querySelectorAll(".settings-section").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll(".settings-nav-item").forEach(b => b.classList.remove("active"));
+  const section = document.getElementById("ss-" + id);
+  const navItem = document.getElementById("snav-" + id);
+  if (section) section.classList.add("active");
+  if (navItem) navItem.classList.add("active");
+
+  // Populate on demand
+  if (id === "people")        renderSettingsPeople();
+  if (id === "inactive")      renderInactiveTable();
+  if (id === "capacity")      renderCapacity();
+  if (id === "desks")         renderDeskSummary();
+  if (id === "about")         renderAbout();
+  if (id === "datasource")    renderDSSettings();
+  if (id === "neighbourhood") renderNeighbourhoodSettings();
+}
+
+function setSMFilter(f, el) {
+  smFilter = f;
+  document.querySelectorAll(".sm-filter-chip").forEach(c => c.classList.remove("active"));
+  el.classList.add("active");
+  renderSettingsPeople();
+}
+
+function renderSettingsPeople() {
+  const search = (document.getElementById("smSearch")?.value || "").toLowerCase();
+  let people = PEOPLE.filter(p => {
+    if (p.active === false) return false;
+    if (search && !p.name.toLowerCase().includes(search) && !p.team.toLowerCase().includes(search)) return false;
+    if (smFilter === "all") return true;
+    if (smFilter === "Dev" || smFilter === "Non-Dev") return p.role === smFilter;
+    return p.office === smFilter;
+  }).sort((a,b) => a.name.localeCompare(b.name));
+
+  const tbody = document.getElementById("smTableBody");
+  tbody.innerHTML = "";
+
+  people.forEach(p => {
+    const tc = teamColor(p.team);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="pm-avatar" style="width:24px;height:24px;font-size:9px;background:${tc}22;color:${tc}">${initials(p.name)}</div>
+          <input class="sm-input" value="${p.name}" onchange="updatePersonField('${p.name}','name',this.value)" style="max-width:160px;">
+        </div>
+      </td>
+      <td>
+        <select class="sm-select" onchange="updatePersonField('${p.name}','office',this.value)">
+          ${["London","Munich","Sydney"].map(o=>`<option ${p.office===o?"selected":""}>${o}</option>`).join("")}
+        </select>
+      </td>
+      <td>
+        <input class="sm-input" value="${p.team}" onchange="updatePersonField('${p.name}','team',this.value)" style="min-width:110px;">
+      </td>
+      <td>
+        <select class="sm-select" onchange="updatePersonField('${p.name}','role',this.value)" style="width:auto;">
+          <option ${p.role==="Dev"?"selected":""}>Dev</option>
+          <option ${p.role==="Non-Dev"?"selected":""}>Non-Dev</option>
+        </select>
+      </td>
+      <td>
+        <select class="sm-select" onchange="updatePersonField('${p.name}','wfhDay',this.value)" style="width:auto;">
+          ${["Monday","Tuesday","Wednesday","Thursday","Friday","Office all week"].map(d=>`<option ${p.wfhDay===d?"selected":""}>${d}</option>`).join("")}
+        </select>
+      </td>
+      <td>
+        <span class="sm-badge active-badge">● Active</span>
+      </td>
+      <td>
+        <button class="sm-toggle-btn deactivate" onclick="deactivatePerson('${p.name}')">
+          ✕ Deactivate
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  if (!people.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text3);font-family:'DM Mono',monospace;font-size:11px;">No people match</td></tr>`;
+  }
+}
+
+function renderInactiveTable() {
+  const inactive = PEOPLE.filter(p => p.active === false).sort((a,b)=>a.name.localeCompare(b.name));
+  const tbody = document.getElementById("inactiveTableBody");
+  tbody.innerHTML = "";
+
+  if (!inactive.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text3);font-family:'DM Mono',monospace;font-size:11px;">No inactive staff — everyone is active ✓</td></tr>`;
+    return;
+  }
+
+  inactive.forEach(p => {
+    const tc = teamColor(p.team);
+    const tr = document.createElement("tr");
+    tr.className = "row-inactive";
+    tr.innerHTML = `
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="pm-avatar" style="width:24px;height:24px;font-size:9px;background:${tc}22;color:${tc}">${initials(p.name)}</div>
+          <span style="font-size:12px;">${p.name}</span>
+        </div>
+      </td>
+      <td><span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);">${p.office}</span></td>
+      <td><span class="pm-team-badge" style="background:${tc}18;color:${tc};font-size:9px;padding:2px 6px;border-radius:4px;">${p.team}</span></td>
+      <td><span class="sm-badge ${p.role==="Dev"?"dev-badge":"nondev-badge"}">${p.role}</span></td>
+      <td><span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);">—</span></td>
+      <td>
+        <button class="sm-toggle-btn activate" onclick="activatePerson('${p.name}')">
+          ✓ Reactivate
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderCapacity() {
+  const barEl = document.getElementById("capacityBars");
+  const peakEl = document.getElementById("peakOccupancy");
+  barEl.innerHTML = "";
+  peakEl.innerHTML = "";
+
+  ["London","Munich","Sydney"].forEach(office => {
+    const headcount = PEOPLE.filter(p=>p.office===office&&p.active!==false).length;
+    const deskCount = DESKS.filter(d=>d.office===office).length;
+    const pct = Math.min(100, Math.round((headcount/deskCount)*100));
+    const barColor = pct > 90 ? "var(--warn)" : pct > 75 ? "var(--sydney)" : "var(--accent3)";
+    const oc = OFFICE_ACCENT[office];
+
+    barEl.innerHTML += `
+      <div class="capacity-row">
+        <div class="capacity-label" style="color:${oc};font-weight:600;">${office}</div>
+        <div class="capacity-bar-wrap">
+          <div class="capacity-bar" style="width:${pct}%;background:${barColor}"></div>
+        </div>
+        <div class="capacity-nums">${headcount} / ${deskCount} desks</div>
+      </div>
+    `;
+
+    // Find peak day
+    const days = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
+    let peakDay = "Monday", peakCount = 0;
+    days.forEach(day => {
+      const inOffice = PEOPLE.filter(p=>p.office===office&&p.active!==false).filter(p=>{
+        const wfh = p.wfhDay||"";
+        return ["Office all week",""].includes(wfh) || wfh !== day;
+      }).length;
+      if (inOffice > peakCount) { peakCount = inOffice; peakDay = day; }
+    });
+
+    peakEl.innerHTML += `
+      <div class="capacity-row">
+        <div class="capacity-label" style="color:${oc};font-weight:600;">${office}</div>
+        <div style="flex:1;font-size:12px;color:var(--text2);">${peakDay}</div>
+        <div class="capacity-nums">${peakCount} people</div>
+      </div>
+    `;
+  });
+}
+
+function renderDeskSummary() {
+  const el = document.getElementById("deskSummaryCards");
+  el.innerHTML = "";
+
+  ["London","Munich","Sydney"].forEach(office => {
+    const oc = OFFICE_ACCENT[office];
+    const officeDesks = DESKS.filter(d=>d.office===office);
+    const byTable = {};
+    officeDesks.forEach(d => {
+      if (!byTable[d.tableId]) byTable[d.tableId] = 0;
+      byTable[d.tableId]++;
+    });
+    const tables = Object.entries(byTable).sort(([a],[b])=>a.localeCompare(b));
+
+    el.innerHTML += `
+      <div class="s-card" style="margin-bottom:14px;">
+        <div class="s-card-header">
+          <div>
+            <div class="s-card-title" style="color:${oc}">${office}</div>
+            <div class="s-card-desc">${officeDesks.length} desks across ${tables.length} tables</div>
+          </div>
+        </div>
+        <div class="s-card-body">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;">
+            ${tables.map(([tid,count])=>{
+              const tnum = tid.split("-T")[1]||tid;
+              return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-align:center;">
+                <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--text);">Table ${tnum}</div>
+                <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-top:2px;">${count} desks</div>
+              </div>`;
+            }).join("")}
+          </div>
+        </div>
+      </div>
+    `;
+  });
+}
+
+function renderAbout() {
+  const el = document.getElementById("aboutStats");
+  const active = PEOPLE.filter(p=>p.active!==false).length;
+  const inactive = PEOPLE.filter(p=>p.active===false).length;
+  const devs = PEOPLE.filter(p=>p.active!==false&&p.role==="Dev").length;
+  el.innerHTML = `
+    <div class="about-stat"><span class="about-stat-label">Total people</span><span class="about-stat-value">${PEOPLE.length}</span></div>
+    <div class="about-stat"><span class="about-stat-label">Active</span><span class="about-stat-value">${active}</span></div>
+    <div class="about-stat"><span class="about-stat-label">Inactive</span><span class="about-stat-value">${inactive}</span></div>
+    <div class="about-stat"><span class="about-stat-label">Dev / Non-Dev</span><span class="about-stat-value">${devs} Dev · ${active-devs} Non-Dev</span></div>
+    <div class="about-stat"><span class="about-stat-label">Total desks</span><span class="about-stat-value">${DESKS.length}</span></div>
+    <div class="about-stat"><span class="about-stat-label">Offices</span><span class="about-stat-value">London · Munich · Sydney</span></div>
+    <div class="about-stat"><span class="about-stat-label">Version</span><span class="about-stat-value">v3.0</span></div>
+  `;
+}
+
+function updatePersonField(originalName, field, value) {
+  const p = PEOPLE.find(x => x.name === originalName);
+  if (!p) return;
+  p[field] = value;
+  if (field === "name") {
+    // Update overrides key if name changed
+    if (overrides[originalName]) {
+      overrides[value] = overrides[originalName];
+      delete overrides[originalName];
+    }
+  }
+  plan = generatePlan(pmWeekDates.length ? pmWeekDates : getWeekDates(0));
+  showToast(`✓ ${value} updated`);
+}
+
+function deactivatePerson(name) {
+  const p = PEOPLE.find(x => x.name === name);
+  if (!p) return;
+  p.active = false;
+  plan = generatePlan(pmWeekDates.length ? pmWeekDates : getWeekDates(0));
+  renderSettingsPeople();
+  showToast(`✕ ${name.split(" ")[0]} deactivated`);
+}
+
+function activatePerson(name) {
+  const p = PEOPLE.find(x => x.name === name);
+  if (!p) return;
+  p.active = true;
+  plan = generatePlan(pmWeekDates.length ? pmWeekDates : getWeekDates(0));
+  renderInactiveTable();
+  showToast(`✓ ${name.split(" ")[0]} reactivated`);
+}
+
+function saveRules() {
+  plan = generatePlan(pmWeekDates.length ? pmWeekDates : getWeekDates(0));
+  showToast("✓ Rules saved — plan regenerated");
+}
+
+function savePreferences() {
+  showToast("✓ Preferences saved");
+}
+
+// ── EXPORT ──
+function exportCSV(type) {
+  let rows = [], filename = "";
+
+  if (type === "people") {
+    filename = "engagetech_people.csv";
+    rows = [["Name","Office","Team","Role","WFH Day","Status"]];
+    PEOPLE.forEach(p => rows.push([p.name, p.office, p.team, p.role, p.wfhDay, p.active===false?"Inactive":"Active"]));
+  }
+
+  if (type === "wfh") {
+    filename = "engagetech_wfh_week.csv";
+    const wDates = pmWeekDates.length ? pmWeekDates : getWeekDates(0);
+    rows = [["Name","Office","Team",...wDates.map(d=>dayName(d)+" "+fmtDate(d))]];
+    PEOPLE.filter(p=>p.active!==false).forEach(p => {
+      const ds_ = dateStr;
+      const dayCols = wDates.map(d => {
+        const status = getDayStatus(p, d);
+        return status === "wfh" ? "WFH" : status === "away" ? "Away" : "In Office";
+      });
+      rows.push([p.name, p.office, p.team, ...dayCols]);
+    });
+  }
+
+  if (type === "plan") {
+    filename = "engagetech_seating_plan.csv";
+    const wDates = pmWeekDates.length ? pmWeekDates : getWeekDates(0);
+    rows = [["Name","Office","Team",...wDates.map(d=>dayName(d)+" "+fmtDate(d))]];
+    PEOPLE.filter(p=>p.active!==false).forEach(p => {
+      const dayCols = wDates.map(d => {
+        const ds = dateStr(d);
+        const val = plan[p.name]?.[ds] || "";
+        return val === "WFH" ? "WFH" : val ? shortDeskLabel(val) : "";
+      });
+      rows.push([p.name, p.office, p.team, ...dayCols]);
+    });
+  }
+
+  if (type === "desks") {
+    filename = "engagetech_desk_assignments.csv";
+    rows = [["Desk ID","Office","Table","Assigned To","Day"]];
+    const wDates = pmWeekDates.length ? pmWeekDates : getWeekDates(0);
+    wDates.forEach(d => {
+      const ds = dateStr(d);
+      const dName = dayName(d)+" "+fmtDate(d);
+      DESKS.forEach(desk => {
+        const person = PEOPLE.find(p => plan[p.name]?.[ds] === desk.id);
+        rows.push([desk.id, desk.office, desk.tableId, person ? person.name : "—", dName]);
+      });
+    });
+  }
+
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+  showToast(`✓ Downloaded ${filename}`);
+}
+
+
+// ════════════════════════════════════════════════
+// GOOGLE SHEETS BACKEND
+// ════════════════════════════════════════════════
+let gsConnected = false;
+let gsUrl = localStorage.getItem('gsUrl') || '';
+let gsLastSync = localStorage.getItem('gsLastSync') || null;
+
+function renderGSBanner() {
+  const b = document.getElementById('gsBanner');
+  if (!b) return;
+  if (!gsUrl) {
+    b.className = 'gs-banner disconnected';
+    b.innerHTML = '<div class="gs-dot"></div><span>No live data source — using built-in data</span><a href="#" class="gs-sync-btn" onclick="showPage(\'settings\');showSettingsSection(\'datasource\');return false;">Connect Sheets →</a>';
+  } else if (gsConnected) {
+    b.className = 'gs-banner connected';
+    b.innerHTML = '<div class="gs-dot"></div><span>Google Sheets connected' + (gsLastSync ? ' · synced ' + new Date(gsLastSync).toLocaleTimeString() : '') + '</span><button class="gs-sync-btn" onclick="syncFromGSheets()">↻ Sync</button>';
+  } else {
+    b.className = 'gs-banner loading';
+    b.innerHTML = '<div class="gs-dot pulse"></div><span>Connecting…</span>';
+  }
+}
+
+async function syncFromGSheets() {
+  if (!gsUrl) return;
+  const b = document.getElementById('gsBanner');
+  if (b) { b.className = 'gs-banner loading'; b.innerHTML = '<div class="gs-dot pulse"></div><span>Syncing from Google Sheets…</span>'; }
+  try {
+    const res = await fetch(gsUrl);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    const parsed = parseGSCSV(text);
+    if (parsed.length > 0) {
+      parsed.forEach(newP => {
+        const ex = PEOPLE.find(p => p.name === newP.name);
+        if (ex) newP.active = ex.active;
+      });
+      PEOPLE.length = 0;
+      PEOPLE.push(...parsed);
+      plan = generatePlan(weekDates);
+      renderAll();
+    }
+    gsConnected = true;
+    gsLastSync = new Date().toISOString();
+    localStorage.setItem('gsLastSync', gsLastSync);
+    renderGSBanner();
+    showToast('Synced — ' + PEOPLE.length + ' people loaded');
+  } catch(e) {
+    gsConnected = false;
+    renderGSBanner();
+    showToast('Could not connect — check the URL in Settings → Data Source');
+  }
+}
+
+function parseGSCSV(text) {
+  const lines = text.trim().split('\n').map(l => l.split(',').map(c => c.replace(/^"|"$/g,'').trim()));
+  if (lines.length < 2) return [];
+  const headers = lines[0].map(h => h.toLowerCase().replace(/[^a-z]/g,''));
+  const get = (row, ...keys) => { for (const k of keys) { const i = headers.indexOf(k); if (i >= 0 && row[i]) return row[i]; } return ''; };
+  return lines.slice(1).filter(r => r[0]).map(row => {
+    const name = get(row,'name','fullname');
+    const office = get(row,'office');
+    const team = get(row,'team','department');
+    const role = get(row,'role','roletype');
+    const wfh = get(row,'wfhday','wfh','remoteday');
+    if (!name || !office) return null;
+    return { name, office, team: team||'Delivery', role: role.includes('Dev')&&!role.includes('Non')?'Dev':'Non-Dev', wfhDay: wfh||'Office all week', active: true };
+  }).filter(Boolean);
+}
+
+function saveGSUrl(url) {
+  gsUrl = url.trim();
+  localStorage.setItem('gsUrl', gsUrl);
+  if (gsUrl) syncFromGSheets();
+  else { gsConnected = false; renderGSBanner(); }
+}
+
+function renderDSSettings() {
+  const inp = document.getElementById('gsUrlInput');
+  if (inp) inp.value = gsUrl || '';
+  const st = document.getElementById('gsSheetStatus');
+  if (!st) return;
+  if (gsConnected) {
+    st.className = 'gs-sheet-status connected';
+    st.textContent = '● Connected · ' + PEOPLE.length + ' people · last synced ' + (gsLastSync ? new Date(gsLastSync).toLocaleTimeString() : 'never');
+  } else {
+    st.className = 'gs-sheet-status disconnected';
+    st.textContent = '○ Not connected — using built-in data (' + PEOPLE.length + ' people)';
+  }
+}
+
+// ════════════════════════════════════════════════
+// BOOKING / SWAP SYSTEM
+// ════════════════════════════════════════════════
+const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
+let swapSource = null;
+let swapTarget = null;
+
+function saveBookings() { localStorage.setItem('bookings', JSON.stringify(bookings)); }
+
+function getEffectiveAssignment(personName, ds) {
+  const db = bookings[ds] || {};
+  for (const [deskId, pName] of Object.entries(db)) {
+    if (pName === personName) return deskId;
+  }
+  return plan[personName] && plan[personName][ds];
+}
+
+function openSwapModal(personName, ds) {
+  const myDesk = getEffectiveAssignment(personName, ds);
+  if (!myDesk || myDesk === 'WFH') { showToast('This person is WFH — nothing to swap'); return; }
+  swapSource = { personName, ds, deskId: myDesk };
+  swapTarget = null;
+  const person = PEOPLE.find(p => p.name === personName);
+  if (!person) return;
+  const date = new Date(ds + 'T12:00:00');
+  document.getElementById('swapModalSub').textContent = 'Swapping ' + personName + "'s desk (" + shortDeskLabel(myDesk) + ') on ' + dayName(date) + ' ' + fmtDate(date);
+  const list = document.getElementById('swapPersonList');
+  list.innerHTML = '';
+  PEOPLE.filter(p => p.active !== false && p.office === person.office && p.name !== personName).forEach(p => {
+    const theirDesk = getEffectiveAssignment(p.name, ds);
+    if (!theirDesk || theirDesk === 'WFH') return;
+    const tc = teamColor(p.team);
+    const div = document.createElement('div');
+    div.className = 'swap-person-opt';
+    div.innerHTML = '<div class="pm-avatar" style="width:26px;height:26px;font-size:9px;background:' + tc + '22;color:' + tc + '">' + initials(p.name) + '</div><div class="swap-person-name">' + p.name + '</div><div class="swap-person-desk">' + shortDeskLabel(theirDesk) + '</div>';
+    div.onclick = () => {
+      list.querySelectorAll('.swap-person-opt').forEach(o => o.classList.remove('selected'));
+      div.classList.add('selected');
+      swapTarget = { personName: p.name, deskId: theirDesk };
+    };
+    list.appendChild(div);
+  });
+  if (!list.children.length) list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:11px;">Nobody available to swap with today</div>';
+  document.getElementById('swapModal').classList.add('open');
+}
+
+function closeSwapModal() {
+  document.getElementById('swapModal').classList.remove('open');
+  swapSource = null; swapTarget = null;
+}
+
+function confirmSwap() {
+  if (!swapSource || !swapTarget) { showToast('Select someone to swap with first'); return; }
+  if (!bookings[swapSource.ds]) bookings[swapSource.ds] = {};
+  bookings[swapSource.ds][swapSource.deskId] = swapTarget.personName;
+  bookings[swapSource.ds][swapTarget.deskId] = swapSource.personName;
+  saveBookings();
+  closeSwapModal();
+  renderAll();
+  renderPM();
+  showToast(swapSource.personName.split(' ')[0] + ' and ' + swapTarget.personName.split(' ')[0] + ' swapped ✓');
+}
+
+// Close swap modal on background click
+document.getElementById('swapModal').addEventListener('click', function(e) {
+  if (e.target === this) closeSwapModal();
+});
+
+// ════════════════════════════════════════════════
+// NEIGHBOURHOOD SEATING
+// ════════════════════════════════════════════════
+let neighbourhoodPairs = JSON.parse(localStorage.getItem('nbPairs') || JSON.stringify([
+  { teamA: 'Sales', teamB: 'Management', strength: 'strong' }
+]));
+
+function renderNeighbourhoodSettings() {
+  const el = document.getElementById('nbPairsContainer');
+  if (!el) return;
+  el.innerHTML = '';
+  const teams = [...new Set(PEOPLE.map(p => p.team))].sort();
+  if (!teams.length) { el.innerHTML = '<div style="color:var(--text3);font-size:11px;padding:8px;">No teams found — add people first</div>'; return; }
+  neighbourhoodPairs.forEach((pair, idx) => {
+    const div = document.createElement('div');
+    div.className = 'nb-pair-row';
+    const teamOpts = teams.map(t => '<option' + (pair.teamA===t?' selected':'') + '>' + t + '</option>').join('');
+    const teamOpts2 = teams.map(t => '<option' + (pair.teamB===t?' selected':'') + '>' + t + '</option>').join('');
+    div.innerHTML = '<select onchange="neighbourhoodPairs[' + idx + '].teamA=this.value;saveNBPairs()">' + teamOpts + '</select><span style="color:var(--text3);padding:0 6px;">↔</span><select onchange="neighbourhoodPairs[' + idx + '].teamB=this.value;saveNBPairs()">' + teamOpts2 + '</select><select style="width:100px;margin-left:4px;background:var(--surface3);border:1px solid var(--border2);border-radius:6px;padding:5px 6px;color:var(--text);font-size:10px;font-family:DM Mono,monospace;outline:none;" onchange="neighbourhoodPairs[' + idx + '].strength=this.value;saveNBPairs()"><option' + (pair.strength==='strong'?' selected':'') + ' value="strong">Strong</option><option' + (pair.strength==='soft'?' selected':'') + ' value="soft">Soft</option></select><button class="nb-del-btn" onclick="removeNBPair(' + idx + ')">✕</button>';
+    el.appendChild(div);
+  });
+}
+
+function saveNBPairs() { localStorage.setItem('nbPairs', JSON.stringify(neighbourhoodPairs)); }
+function removeNBPair(idx) { neighbourhoodPairs.splice(idx,1); saveNBPairs(); renderNeighbourhoodSettings(); }
+function addNBPair() {
+  const teams = [...new Set(PEOPLE.map(p => p.team))].sort();
+  neighbourhoodPairs.push({ teamA: teams[0]||'', teamB: teams[1]||teams[0]||'', strength: 'soft' });
+  saveNBPairs();
+  renderNeighbourhoodSettings();
+}
+
+// ════════════════════════════════════════════════
+// ATTENDANCE DASHBOARD
+// ════════════════════════════════════════════════
+function renderAttendance() {
+  const grid = document.getElementById('attGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+  const sdays = ['Mon','Tue','Wed','Thu','Fri'];
+
+  ['London','Munich','Sydney'].forEach(office => {
+    const oc = OFFICE_ACCENT[office];
+    const ppl = PEOPLE.filter(p => p.office===office && p.active!==false);
+    const deskCount = DESKS.filter(d => d.office===office).length;
+    const counts = days.map(day => ppl.filter(p => {
+      const w = p.wfhDay || '';
+      return ['Office all week',''].includes(w) || w !== day;
+    }).length);
+    const maxC = Math.max(...counts, 1);
+    const avgC = Math.round(counts.reduce((a,b)=>a+b,0)/5);
+    const peakDay = days[counts.indexOf(maxC)];
+    const quietDay = days[counts.indexOf(Math.min(...counts))];
+
+    const card = document.createElement('div');
+    card.className = 'att-card';
+    const bars = counts.map((c,i) => {
+      const pct = Math.round((c/maxC)*100);
+      const util = Math.round((c/Math.max(deskCount,1))*100);
+      const bc = util > 90 ? 'var(--warn)' : util > 70 ? 'var(--sydney)' : oc;
+      return '<div class="mini-bar-wrap"><div class="mini-bar-val">' + c + '</div><div class="mini-bar" style="height:' + Math.max(pct,4) + '%;background:' + bc + '33;border:1px solid ' + bc + '66;border-radius:4px 4px 0 0;width:100%;min-height:4px;"></div><div class="mini-bar-label">' + sdays[i] + '</div></div>';
+    }).join('');
+    card.innerHTML = '<div class="att-card-header"><div class="att-card-title" style="color:' + oc + '">' + office + '</div><div style="font-size:10px;color:var(--text3);font-family:DM Mono,monospace;">' + ppl.length + ' staff · ' + deskCount + ' desks</div></div><div class="att-card-body"><div class="mini-bar-chart" style="display:flex;align-items:flex-end;gap:6px;height:80px;">' + bars + '</div><div style="margin-top:12px;"><div class="trend-row"><span class="trend-label">Busiest day</span><span class="trend-val">' + peakDay + '</span><span class="trend-delta trend-up">' + maxC + ' in</span></div><div class="trend-row"><span class="trend-label">Quietest day</span><span class="trend-val">' + quietDay + '</span><span class="trend-delta trend-flat">' + Math.min(...counts) + ' in</span></div><div class="trend-row"><span class="trend-label">Avg / day</span><span class="trend-val">' + avgC + '</span><span class="trend-delta trend-flat">' + Math.round(avgC/Math.max(deskCount,1)*100) + '% util</span></div></div></div>';
+    grid.appendChild(card);
+  });
+
+  // Heatmap
+  const heatCard = document.createElement('div');
+  heatCard.className = 'att-card';
+  heatCard.style.gridColumn = '1 / -1';
+  let hh = '<div class="att-card-header"><div class="att-card-title">Occupancy Heatmap</div><div style="font-size:10px;color:var(--text3);font-family:DM Mono,monospace;">% of desks occupied per office per day</div></div><div class="att-card-body"><div style="display:grid;grid-template-columns:70px repeat(5,1fr);gap:4px;"><div></div>' + sdays.map(d => '<div style="text-align:center;font-size:9px;color:var(--text3);font-family:DM Mono,monospace;font-weight:600;padding:4px;">' + d + '</div>').join('');
+  ['London','Munich','Sydney'].forEach(office => {
+    const oc = OFFICE_ACCENT[office];
+    const dc = Math.max(DESKS.filter(d=>d.office===office).length, 1);
+    const ppl = PEOPLE.filter(p=>p.office===office&&p.active!==false);
+    hh += '<div style="display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:10px;color:' + oc + ';font-weight:600;font-family:DM Mono,monospace;">' + office + '</div>';
+    days.forEach(day => {
+      const inOff = ppl.filter(p => { const w=p.wfhDay||''; return ['Office all week',''].includes(w)||w!==day; }).length;
+      const pct = Math.round((inOff/dc)*100);
+      const alpha = 0.08 + (pct/100)*0.72;
+      hh += '<div style="height:28px;border-radius:5px;display:flex;align-items:center;justify-content:center;background:' + oc + ';opacity:' + alpha + ';color:white;font-weight:700;font-size:9px;font-family:DM Mono,monospace;">' + pct + '%</div>';
+    });
+  });
+  hh += '</div></div>';
+  heatCard.innerHTML = hh;
+  grid.appendChild(heatCard);
+
+  // WFH distribution
+  const wfhCounts = {};
+  days.forEach(d => wfhCounts[d] = 0);
+  PEOPLE.filter(p=>p.active!==false).forEach(p => { const w=p.wfhDay||''; if(!['Office all week',''].includes(w)&&w in wfhCounts) wfhCounts[w]++; });
+  const maxW = Math.max(...Object.values(wfhCounts), 1);
+  const topWfh = days.reduce((a,b) => wfhCounts[a]>=wfhCounts[b]?a:b);
+  const wfhCard = document.createElement('div');
+  wfhCard.className = 'att-card';
+  const wfhBars = days.map(day => {
+    const c = wfhCounts[day];
+    const pct = Math.round((c/maxW)*100);
+    return '<div class="mini-bar-wrap"><div class="mini-bar-val">' + c + '</div><div style="height:' + Math.max(pct,4) + '%;background:rgba(124,92,252,.2);border:1px solid rgba(124,92,252,.4);border-radius:4px 4px 0 0;width:100%;min-height:4px;"></div><div class="mini-bar-label">' + day.slice(0,3) + '</div></div>';
+  }).join('');
+  wfhCard.innerHTML = '<div class="att-card-header"><div class="att-card-title">WFH Day Distribution</div><div style="font-size:10px;color:var(--text3);font-family:DM Mono,monospace;">Across all offices</div></div><div class="att-card-body"><div class="mini-bar-chart" style="display:flex;align-items:flex-end;gap:6px;height:80px;">' + wfhBars + '</div><div style="margin-top:12px;"><div class="trend-row"><span class="trend-label">Most popular WFH day</span><span class="trend-val">' + topWfh + '</span></div><div class="trend-row"><span class="trend-label">Always in office</span><span class="trend-val">' + PEOPLE.filter(p=>p.active!==false&&['Office all week',''].includes(p.wfhDay||'')).length + ' people</span></div><div class="trend-row"><span class="trend-label">Have a WFH day</span><span class="trend-val">' + PEOPLE.filter(p=>p.active!==false&&!['Office all week',''].includes(p.wfhDay||'')).length + ' people</span></div></div></div>';
+  grid.appendChild(wfhCard);
+}
+
+// ════════════════════════════════════════════════
+// EXTEND showSettingsSection for new sections
+// (directly extending — no wrapper pattern)
+// ════════════════════════════════════════════════
+
+</script>
+
+<!-- SETTINGS PAGE -->
+<div class="page" id="page-settings">
+  <div class="settings-layout">
+
+    <!-- Left nav -->
+    <div class="settings-nav">
+      <div class="settings-nav-sep">People</div>
+      <button class="settings-nav-item active" id="snav-people" onclick="showSettingsSection('people')">
+        <span class="s-icon">👥</span> All People
+      </button>
+      <button class="settings-nav-item" id="snav-inactive" onclick="showSettingsSection('inactive')">
+        <span class="s-icon">🔴</span> Inactive Staff
+      </button>
+
+      <div class="settings-nav-sep">Offices</div>
+      <button class="settings-nav-item" id="snav-capacity" onclick="showSettingsSection('capacity')">
+        <span class="s-icon">🏢</span> Capacity
+      </button>
+      <button class="settings-nav-item" id="snav-desks" onclick="showSettingsSection('desks')">
+        <span class="s-icon">🪑</span> Desks & Tables
+      </button>
+
+      <div class="settings-nav-sep">Planning</div>
+      <button class="settings-nav-item" id="snav-rules" onclick="showSettingsSection('rules')">
+        <span class="s-icon">📐</span> Constraint Rules
+      </button>
+      <button class="settings-nav-item" id="snav-preferences" onclick="showSettingsSection('preferences')">
+        <span class="s-icon">⚙️</span> Preferences
+      </button>
+
+      
+      <div class="settings-nav-sep">Integrations</div>
+      <button class="settings-nav-item" id="snav-datasource" onclick="showSettingsSection('datasource')">
+        <span class="s-icon">🔗</span> Data Source
+      </button>
+      <button class="settings-nav-item" id="snav-neighbourhood" onclick="showSettingsSection('neighbourhood')">
+        <span class="s-icon">🏘️</span> Neighbourhood
+      </button>
+
+      <div class="settings-nav-sep">Data</div>
+      <button class="settings-nav-item" id="snav-export" onclick="showSettingsSection('export')">
+        <span class="s-icon">📤</span> Export
+      </button>
+      <button class="settings-nav-item" id="snav-about" onclick="showSettingsSection('about')">
+        <span class="s-icon">ℹ️</span> About
+      </button>
+    </div>
+
+    <!-- Right panel -->
+    <div class="settings-panel">
+
+      <!-- ALL PEOPLE -->
+      <div class="settings-section active" id="ss-people">
+        <div class="s-page-title">All People</div>
+        <div class="s-page-sub">Edit names, teams, roles, offices and WFH days. Changes take effect immediately.</div>
+        <input class="sm-search" id="smSearch" placeholder="🔍  Search…" oninput="renderSettingsPeople()">
+        <div class="sm-filter-row" id="smFilters">
+          <button class="sm-filter-chip active" data-filter="all" onclick="setSMFilter('all',this)">All</button>
+          <button class="sm-filter-chip" data-filter="London" onclick="setSMFilter('London',this)">London</button>
+          <button class="sm-filter-chip" data-filter="Munich" onclick="setSMFilter('Munich',this)">Munich</button>
+          <button class="sm-filter-chip" data-filter="Sydney" onclick="setSMFilter('Sydney',this)">Sydney</button>
+          <button class="sm-filter-chip" data-filter="Dev" onclick="setSMFilter('Dev',this)">Dev only</button>
+          <button class="sm-filter-chip" data-filter="Non-Dev" onclick="setSMFilter('Non-Dev',this)">Non-Dev only</button>
+        </div>
+        <div class="s-card">
+          <div class="sm-table-wrap">
+            <table class="sm-table" id="smTable">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Office</th>
+                  <th>Team</th>
+                  <th>Role</th>
+                  <th>WFH Day</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="smTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- INACTIVE STAFF -->
+      <div class="settings-section" id="ss-inactive">
+        <div class="s-page-title">Inactive Staff</div>
+        <div class="s-page-sub">People marked inactive are hidden from the seating plan. Reactivate leavers who return or were removed by mistake.</div>
+        <div class="s-card">
+          <div class="sm-table-wrap">
+            <table class="sm-table" id="inactiveTable">
+              <thead>
+                <tr><th>Name</th><th>Office</th><th>Team</th><th>Role</th><th>Last Active</th><th>Action</th></tr>
+              </thead>
+              <tbody id="inactiveTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- CAPACITY -->
+      <div class="settings-section" id="ss-capacity">
+        <div class="s-page-title">Office Capacity</div>
+        <div class="s-page-sub">Live headcount vs desk availability across all three offices.</div>
+        <div class="s-card">
+          <div class="s-card-header"><div class="s-card-title">Headcount vs Desks</div></div>
+          <div class="s-card-body" id="capacityBars"></div>
+        </div>
+        <div class="s-card">
+          <div class="s-card-header"><div class="s-card-title">Peak Day Occupancy</div><div class="s-card-desc">Busiest in-office day per office this week</div></div>
+          <div class="s-card-body" id="peakOccupancy"></div>
+        </div>
+      </div>
+
+      <!-- DESKS -->
+      <div class="settings-section" id="ss-desks">
+        <div class="s-page-title">Desks & Tables</div>
+        <div class="s-page-sub">Overview of desk layout per office. To restructure tables, update the source data.</div>
+        <div id="deskSummaryCards"></div>
+      </div>
+
+      <!-- CONSTRAINT RULES -->
+      <div class="settings-section" id="ss-rules">
+        <div class="s-page-title">Constraint Rules</div>
+        <div class="s-page-sub">Adjust the rules the planning engine uses when generating each week's seating plan.</div>
+
+        <div class="s-card">
+          <div class="s-card-header"><div class="s-card-title">Seat Rotation</div></div>
+          <div class="s-card-body">
+            <div class="rule-card">
+              <div class="rule-card-left">
+                <span class="rule-icon">🔄</span>
+                <div><div class="rule-title">Max consecutive days in same seat</div><div class="rule-desc">Person must move after this many days in one spot</div></div>
+              </div>
+              <input class="rule-value" type="number" id="rule-consec" value="2" min="1" max="5">
+            </div>
+            <div class="rule-card">
+              <div class="rule-card-left">
+                <span class="rule-icon">🏠</span>
+                <div><div class="rule-title">Max WFH days per week</div><div class="rule-desc">Upper limit on remote days (enforced per person)</div></div>
+              </div>
+              <input class="rule-value" type="number" id="rule-wfh-max" value="1" min="0" max="5">
+            </div>
+          </div>
+        </div>
+
+        <div class="s-card">
+          <div class="s-card-header"><div class="s-card-title">Table Mixing</div></div>
+          <div class="s-card-body">
+            <div class="rule-card">
+              <div class="rule-card-left">
+                <span class="rule-icon">🚫</span>
+                <div><div class="rule-title">Prevent dev-only tables</div><div class="rule-desc">At least one Non-Dev must be present at each occupied table</div></div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="rule-dev-mix" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="rule-card">
+              <div class="rule-card-left">
+                <span class="rule-icon">👥</span>
+                <div><div class="rule-title">Mix teams across tables</div><div class="rule-desc">Avoid seating same-team clusters together</div></div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="rule-team-mix" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="s-card">
+          <div class="s-card-header"><div class="s-card-title">Planning Window</div></div>
+          <div class="s-card-body">
+            <div class="rule-card">
+              <div class="rule-card-left">
+                <span class="rule-icon">📅</span>
+                <div><div class="rule-title">Weeks to plan ahead</div><div class="rule-desc">How many weeks the engine generates at once</div></div>
+              </div>
+              <input class="rule-value" type="number" id="rule-weeks" value="4" min="1" max="12">
+            </div>
+          </div>
+        </div>
+
+        <button class="save-settings-btn" onclick="saveRules()">✓ Save & Regenerate</button>
+      </div>
+
+      <!-- PREFERENCES -->
+      <div class="settings-section" id="ss-preferences">
+        <div class="s-page-title">Preferences</div>
+        <div class="s-page-sub">Display and notification settings for the planner.</div>
+
+        <div class="s-card">
+          <div class="s-card-header"><div class="s-card-title">Display</div></div>
+          <div class="s-card-body">
+            <div class="s-toggle-row">
+              <div><div class="s-toggle-label">Show desk codes in floor plan</div><div class="s-toggle-desc">Display T1·D3 labels on each desk slot</div></div>
+              <label class="toggle-switch"><input type="checkbox" id="pref-deskcodes" checked><span class="toggle-slider"></span></label>
+            </div>
+            <div class="s-toggle-row">
+              <div><div class="s-toggle-label">Show team badges</div><div class="s-toggle-desc">Colour-coded team labels on floor plan cards</div></div>
+              <label class="toggle-switch"><input type="checkbox" id="pref-teambadges" checked><span class="toggle-slider"></span></label>
+            </div>
+            <div class="s-toggle-row">
+              <div><div class="s-toggle-label">Highlight WFH days in People view</div><div class="s-toggle-desc">Colour the default WFH day column distinctly</div></div>
+              <label class="toggle-switch"><input type="checkbox" id="pref-wfhhighlight" checked><span class="toggle-slider"></span></label>
+            </div>
+            <div class="s-toggle-row">
+              <div><div class="s-toggle-label">Group people by team</div><div class="s-toggle-desc">Show team group headers in People view</div></div>
+              <label class="toggle-switch"><input type="checkbox" id="pref-groupbyteam" checked><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="s-card">
+          <div class="s-card-header"><div class="s-card-title">Plan Generation</div></div>
+          <div class="s-card-body">
+            <div class="s-toggle-row">
+              <div><div class="s-toggle-label">Auto-regenerate on people changes</div><div class="s-toggle-desc">Instantly rebuild the plan when you edit someone</div></div>
+              <label class="toggle-switch"><input type="checkbox" id="pref-autogen" checked><span class="toggle-slider"></span></label>
+            </div>
+            <div class="s-toggle-row">
+              <div><div class="s-toggle-label">Lock current week</div><div class="s-toggle-desc">Prevent this week's plan from changing when regenerating</div></div>
+              <label class="toggle-switch"><input type="checkbox" id="pref-lockweek"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="s-toggle-row">
+              <div><div class="s-toggle-label">Notify on constraint violations</div><div class="s-toggle-desc">Show a warning banner if any rules are broken</div></div>
+              <label class="toggle-switch"><input type="checkbox" id="pref-notify" checked><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+        </div>
+        <button class="save-settings-btn" onclick="savePreferences()">✓ Save Preferences</button>
+      </div>
+
+      <!-- EXPORT -->
+      <div class="settings-section" id="ss-export">
+        <div class="s-page-title">Export</div>
+        <div class="s-page-sub">Download plan data in various formats.</div>
+        <div class="s-card">
+          <div class="s-card-body">
+            <button class="export-btn" onclick="exportCSV('plan')">
+              <span class="e-icon">📊</span>
+              <div><div>Export Seating Plan (CSV)</div><div class="e-desc">Full 4-week plan — all people, all offices, all days</div></div>
+            </button>
+            <button class="export-btn" onclick="exportCSV('people')">
+              <span class="e-icon">👥</span>
+              <div><div>Export People List (CSV)</div><div class="e-desc">All staff — name, office, team, role, WFH day, status</div></div>
+            </button>
+            <button class="export-btn" onclick="exportCSV('wfh')">
+              <span class="e-icon">🏠</span>
+              <div><div>Export WFH Schedule (CSV)</div><div class="e-desc">Who is working from home, by day, for the current week</div></div>
+            </button>
+            <button class="export-btn" onclick="exportCSV('desks')">
+              <span class="e-icon">🪑</span>
+              <div><div>Export Desk Assignments (CSV)</div><div class="e-desc">Each desk — who is assigned, which day</div></div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABOUT -->
+      <div class="settings-section" id="ss-about">
+        <div class="s-page-title">About</div>
+        <div class="s-page-sub">EngageTech Seating Planner — internal tool</div>
+        <div class="s-card">
+          <div class="s-card-body" id="aboutStats"></div>
+        </div>
+        <div class="s-card" style="margin-top:12px;">
+          <div class="s-card-header"><div class="s-card-title">Constraint Engine</div></div>
+          <div class="s-card-body">
+            <div class="about-stat"><span class="about-stat-label">Algorithm</span><span class="about-stat-value">Greedy rotation with seeded PRNG</span></div>
+            <div class="about-stat"><span class="about-stat-label">Consecutive rule</span><span class="about-stat-value">Max 2 days same seat before forced move</span></div>
+            <div class="about-stat"><span class="about-stat-label">Dev mixing</span><span class="about-stat-value">Active — no all-dev tables permitted</span></div>
+            <div class="about-stat"><span class="about-stat-label">WFH enforcement</span><span class="about-stat-value">Respected per person, overrideable per day</span></div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- DATA SOURCE SECTION -->
+      <div class="settings-section" id="ss-datasource">
+        <div class="s-page-title">Data Source</div>
+        <div class="s-page-sub">Connect a Google Sheet to keep people data live and in sync.</div>
+        <div class="s-card">
+          <div class="s-card-header"><div class="s-card-title">Google Sheets</div></div>
+          <div class="s-card-body">
+            <div class="gs-sheet-status disconnected" id="gsSheetStatus">○ Not connected — using built-in data</div>
+            <label style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px;">Published CSV URL</label>
+            <input class="gs-url-input" id="gsUrlInput" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv">
+            <button class="gs-connect-btn" onclick="saveGSUrl(document.getElementById('gsUrlInput').value)">⟳ Connect & Sync</button>
+            <div class="gs-instructions">
+              <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:11px;color:var(--text2);margin-bottom:8px;">How to connect your Google Sheet</div>
+              <ol>
+                <li>Open your Sheet with columns: <strong>Name, Office, Team, Role, WFH Day</strong></li>
+                <li>Click <strong>File → Share → Publish to web</strong></li>
+                <li>Select your People tab → choose <strong>CSV</strong> format → click Publish</li>
+                <li>Copy the URL and paste it above, then hit Connect</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+        <div class="s-card">
+          <div class="s-card-header"><div class="s-card-title">Auto-sync</div></div>
+          <div class="s-card-body">
+            <div class="s-toggle-row">
+              <div><div class="s-toggle-label">Sync on page load</div><div class="s-toggle-desc">Pull latest data every time the app opens</div></div>
+              <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NEIGHBOURHOOD SECTION -->
+      <div class="settings-section" id="ss-neighbourhood">
+        <div class="s-page-title">Neighbourhood Seating</div>
+        <div class="s-page-sub">Teams you'd like to sit near each other. The engine uses this as a soft preference — it never blocks a valid plan.</div>
+        <div class="s-card">
+          <div class="s-card-header">
+            <div><div class="s-card-title">Proximity Rules</div><div class="s-card-desc">Strong = same table preferred &nbsp;·&nbsp; Soft = nearby table preferred</div></div>
+          </div>
+          <div class="s-card-body">
+            <div id="nbPairsContainer"></div>
+            <button class="nb-add-btn" onclick="addNBPair()">+ Add rule</button>
+          </div>
+        </div>
+        <button class="save-settings-btn" onclick="saveNBPairs();plan=generatePlan(weekDates);showToast('Neighbourhood rules saved and plan regenerated')">Save & Regenerate</button>
+      </div>
+
+    </div><!-- end settings-panel -->
+  </div><!-- end settings-layout -->
+</div><!-- end page-settings -->
+
+
+<!-- SWAP MODAL -->
+<div class="swap-modal" id="swapModal">
+  <div class="swap-modal-box">
+    <div class="swap-modal-title">Swap Desk</div>
+    <div class="swap-modal-sub" id="swapModalSub"></div>
+    <div class="swap-person-list" id="swapPersonList"></div>
+    <div class="swap-modal-actions">
+      <button class="swap-cancel-btn" onclick="closeSwapModal()">Cancel</button>
+      <button class="swap-confirm-btn" onclick="confirmSwap()">Confirm Swap</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ATTENDANCE PAGE -->
+<div class="page" id="page-attendance">
+  <div style="padding:14px 28px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;">
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;letter-spacing:-.3px;">Attendance & Occupancy</div>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-top:3px;">Live breakdown based on WFH days and office capacity</div>
+  </div>
+  <div class="att-grid" id="attGrid"></div>
+</div>
+
+</body>
+</html>
